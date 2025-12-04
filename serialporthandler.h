@@ -7,6 +7,8 @@
 #include <QDebug>
 #include <QMutexLocker>
 #include <QMutex>
+#include <QTimer>
+#include <QMessageBox>
 
 // Forward declaration of MainWindow
 class MainWindow;
@@ -75,6 +77,9 @@ private:
 
     //mutex variable
     QMutex bufferMutex; // Mutex for thread-safe access to the buffer
+
+    bool singleDialog = false;
+    QTimer *timerEvent = nullptr;
 };
 
 #endif // SERIALPORTHANDLER_H

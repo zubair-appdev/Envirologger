@@ -38,7 +38,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(serialObj,&serialPortHandler::executeWriteToNotes,this,&MainWindow::writeToNotes);
 
     //debugging signals
-    connect(serialObj,&serialPortHandler::portOpening,this,&MainWindow::portStatus);
+    connect(serialObj,&serialPortHandler::portOpening,this,&MainWindow::portStatus,Qt::QueuedConnection);
 
     //gui display signal
     connect(serialObj,&serialPortHandler::guiDisplay,this,&MainWindow::showGuiData);
@@ -1067,6 +1067,24 @@ void MainWindow::portStatus(const QString &data)
         QMessageBox::critical(this,"Error",data);
     }
 
+    if (data.startsWith("START"))
+    {
+
+        dlgPlot = createPleaseWaitDialog("⌛ Please Wait Loading Plot !!!");
+        qDebug() << dlgPlot << " :dlgPlot start";
+    }
+
+    if (data.startsWith("STOP"))
+    {
+
+        if(dlgPlot)
+        {
+            dlgPlot->close();
+            dlgPlot = nullptr;
+        }
+        qDebug() << dlgPlot << " :dlgPlot stop";
+    }
+
     ui->textEdit_rawBytes->append(data);
 }
 
@@ -1256,8 +1274,10 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
         makePacket4100InclList(packet4100InclList);
 
            if (dlgPlot) {
+                qDebug()<<"Closing dialog: "<<dlgPlot;
                 dlgPlot->close();
                 dlgPlot = nullptr;
+                qDebug()<<"Finished dialog: "<<dlgPlot;
               }
 
 
@@ -1637,8 +1657,6 @@ void MainWindow::on_pushButton_getEventData_clicked()
     writeToNotes("Get Event Data cmd sent : " + hexBytes(command));
 
     emit sendMsgId(0x01);
-
-    dlgPlot = createPleaseWaitDialog("⌛ Please Wait Loading Plot !!!");
 
     serialObj->writeData(command);
 

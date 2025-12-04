@@ -18,3 +18,6 @@
 - FFT now using KISS FFT library, power of 2 issue resolved
 - Get Log Events structure changed
 - Now, FF's detection in Inclinometer are also implemented.
+
+#Ver 1.6 ----------------------------------------------------------------------------------------------------
+- Solved please wait dialog opening on Invalid event Id.

@@ -5,10 +5,19 @@ serialPortHandler::serialPortHandler(QObject *parent) : QObject(parent)
     serial = new QSerialPort;
     connect(serial, &QSerialPort::readyRead, this, &serialPortHandler::readData);
 
+    timerEvent = new QTimer(this);
+    timerEvent->setInterval(2000);
+    timerEvent->setSingleShot(true);
+
+    connect(timerEvent,&QTimer::timeout,this,[this](){
+        QMessageBox::warning(nullptr,"Interrupt","Data Interrupted");
+        emit portOpening("STOP");
+    });
 }
 
 serialPortHandler::~serialPortHandler()
 {
+    delete timerEvent;
     delete serial;
 }
 
@@ -156,12 +165,16 @@ void serialPortHandler::readData()
     {
         qDebug() << "msgId:" <<hex<<msgId;
 
+        timerEvent->start();
+
         if(buffer.startsWith(QByteArray::fromHex("AA BB")) && buffer.endsWith(QByteArray::fromHex("AA BB CC DD FF")))
         {
             powerId = 0x01;
             ResponseData = buffer;
             buffer.clear();
             executeWriteToNotes("Get Event Data cmd received bytes: "+ResponseData.toHex(' ').toUpper());
+            singleDialog = false;
+            timerEvent->stop();
         }
         else if(buffer == QByteArray::fromHex("53 54 45 FF"))
         {
@@ -169,9 +182,15 @@ void serialPortHandler::readData()
             ResponseData = buffer;
             buffer.clear();
             executeWriteToNotes("Get Event Data cmd received bytes [NACK Condition]: "+ResponseData.toHex(' ').toUpper());
+            timerEvent->stop();
         }
         else
         {
+            if(!singleDialog)
+            {
+                emit portOpening("START");
+                singleDialog = true;
+            }
             executeWriteToNotes("Required AA BB as header and AA BB CC DD FF as footer, bytes Received bytes: "+QString::number(buffer.size()));
         }
 
@@ -409,5 +428,6 @@ void serialPortHandler::recvMsgId(quint8 id)
 {
     qDebug() << "Received id:" <<hex<< id;
     this->id = id;
+
     buffer.clear();
 }
