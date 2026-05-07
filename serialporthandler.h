@@ -55,6 +55,8 @@ signals:
 
     void guiDisplay(const QByteArray &byteArrayData); //signal for sending byteArray data to GUI : QByteArray
 
+    void liveData(const QByteArray &byteArrayData);
+
     void dataReceived();
 
     void executeWriteToNotes(const QString &dataNotes);
@@ -72,6 +74,8 @@ private:
     QByteArray  buffer;
 
     quint8 id;
+    int adxlPackets=0;
+    int inclPackets=0;
 
     //mutex variable
     QMutex bufferMutex; // Mutex for thread-safe access to the buffer

@@ -5,7 +5,6 @@
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
-
     QSettings settings("settings.ini", QSettings::IniFormat);
 
     int ppi = settings.value("Display/calibratedDPI", 0).toInt();

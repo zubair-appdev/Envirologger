@@ -63,6 +63,7 @@ qrc_*
 Thumbs.db
 ehthumbs.db
 desktop.ini
+object_script.*
 
 # ========== Editor/IDE ==========
 *.swp
