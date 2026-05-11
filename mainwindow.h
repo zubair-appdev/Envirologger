@@ -86,7 +86,7 @@ public:
 
 
 
-    void saveAllSensorDataToExcel(const QVector<double> &adxlIndex,
+    bool saveAllSensorDataToExcel(const QVector<double> &adxlIndex,
                                               const QVector<double> &xAdxl,
                                               const QVector<double> &yAdxl,
                                               const QVector<double> &zAdxl,
@@ -94,7 +94,8 @@ public:
                                               const QVector<double> &temperature,
                                               const QVector<double> &inclIndex,
                                               const QVector<double> &inclX,
-                                              const QVector<double> &inclY);
+                                              const QVector<double> &inclY,
+                                              const QString &fullPath);
 
    void initializeSensorVectors();
 
@@ -294,6 +295,9 @@ private:
      double maxPeak_x = 0.0;
      double maxPeak_y = 0.0;
      double maxPeak_z = 0.0;
+
+     const int MAX_EXCEL_ROWS = 1048576;
+     const int DATA_START_ROW = 4;
 
 
 };  

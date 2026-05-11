@@ -43,3 +43,6 @@
 #Ver 2.3 ---------------------------------------------------------------------------------------------------
 - Taken back code from colleague.
 
+#Ver2.5 ---------------------------------------------------------------------------------------------------
+- on get events now it can handle for 1 hr data, debug_notes limited, excel saving in thread, and custom plot need to be optimized.
+

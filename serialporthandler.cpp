@@ -124,7 +124,7 @@ void serialPortHandler::readData()
         if (!buffer.isEmpty())
         {
             emit dataReceived();
-            executeWriteToNotes("data Received:"+buffer.toHex());
+            //executeWriteToNotes("data Received:"+buffer.toHex());
         }
     }
     else
@@ -162,8 +162,8 @@ void serialPortHandler::readData()
             powerId = 0x01;
             ResponseData = buffer;
             buffer.clear();
-            executeWriteToNotes("Get Event data size: "+QString::number(ResponseData.size()));
-            executeWriteToNotes("Get Event Data cmd received bytes: "+ResponseData.toHex(' ').toUpper());
+            //executeWriteToNotes("Get Event data size: "+QString::number(ResponseData.size()));
+            //executeWriteToNotes("Get Event Data cmd received bytes: "+ResponseData.toHex(' ').toUpper());
         }
         else if(buffer == QByteArray::fromHex("53 54 45 FF"))
         {
@@ -248,8 +248,8 @@ void serialPortHandler::readData()
 
             executeWriteToNotes("ADXL Packet: size = "
                                 + QString::number(ResponseData.size()));
-            executeWriteToNotes("ADXL Packet:"
-                                + ResponseData.toHex(' ').toUpper());
+//            executeWriteToNotes("ADXL Packet:"
+//                                + ResponseData.toHex(' ').toUpper());
 
 
         }
@@ -268,8 +268,8 @@ void serialPortHandler::readData()
 
             executeWriteToNotes("Incl Packet: size = "
                                 + QString::number(ResponseData.size()));
-            executeWriteToNotes("ADXL Packet:"
-                                + ResponseData.toHex(' ').toUpper());
+//            executeWriteToNotes("ADXL Packet:"
+//                                + ResponseData.toHex(' ').toUpper());
 
 
         }

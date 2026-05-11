@@ -45,7 +45,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     livePlotEnabled = ui->checkBox_livePlot->isChecked();
     connect(ui->checkBox_livePlot, &QCheckBox::stateChanged, this, [this](int) {
-    livePlotEnabled = ui->checkBox_livePlot->isChecked();
+        livePlotEnabled = ui->checkBox_livePlot->isChecked();
     });
 
     connect(ui->pushButton_clear,&QPushButton::clicked,ui->textEdit_rawBytes,&QTextEdit::clear);
@@ -290,16 +290,16 @@ QDialog* MainWindow::createPleaseWaitDialog(const QString &text, int timeSeconds
 
     // --- Styling ---
     dlg->setStyleSheet(R"(
-        QDialog {
-            background-color: #f8f8f8;
-            border: 2px solid #0078D7;
-            border-radius: 8px;
-        }
-        QLabel {
-            font-size: 16px;
-            padding: 10px;
-        }
-    )");
+                       QDialog {
+                       background-color: #f8f8f8;
+                       border: 2px solid #0078D7;
+                       border-radius: 8px;
+                       }
+                       QLabel {
+                       font-size: 16px;
+                       padding: 10px;
+                       }
+                       )");
 
     // --- Layout and main label ---
     QVBoxLayout *layout = new QVBoxLayout(dlg);
@@ -501,7 +501,7 @@ void MainWindow::initializeAllPlots()
 
     QColor tempColor(255, 255, 100); // Temperature - Bright Yellow
 
-     //  ADXL X, Y, Z — voltages vs samples (1 unit = 100 ms)
+    //  ADXL X, Y, Z — voltages vs samples (1 unit = 100 ms)
 
     QString adxlFreqLabel = QString("Time (1 = %1 )").arg("N/A");
 
@@ -571,8 +571,8 @@ void MainWindow::initializeAllPlots()
 
     // Axis ranges start clean
     for (auto plot : {ui->customPlot_adxl_x, ui->customPlot_adxl_y, ui->customPlot_adxl_z,
-                      ui->customPlot_inclinometer_x, ui->customPlot_inclinometer_y,
-                      ui->customPlot_temperature,ui->customPlot_adxl_x_FFT,ui->customPlot_adxl_y_FFT,ui->customPlot_adxl_z_FFT})
+         ui->customPlot_inclinometer_x, ui->customPlot_inclinometer_y,
+         ui->customPlot_temperature,ui->customPlot_adxl_x_FFT,ui->customPlot_adxl_y_FFT,ui->customPlot_adxl_z_FFT})
     {
         plot->xAxis->setRange(0, 100);
         plot->yAxis->setRange(-5, 5);
@@ -747,7 +747,7 @@ void MainWindow::makePacket32UI(QList<QByteArray> &rawPacket32List)
     }
     else
     {
-       QMessageBox::warning(this,"Error","packet32List size is more than 1");
+        QMessageBox::warning(this,"Error","packet32List size is more than 1");
     }
 }
 
@@ -841,12 +841,12 @@ void MainWindow::makePacket4100AdxlTempList(QList<QByteArray> &rawPacket4100Adxl
         {
             plot->graph(0)->setData(x, y);
             plot->rescaleAxes();
-            plot->replot();
+            plot->replot(QCustomPlot::rpQueuedReplot);
         }
     };
 
     // --- Plot ADXL ---
-   // QVector<double>freq=generateSineWave(500, 7.5, 2.0, 10000.0);
+    // QVector<double>freq=generateSineWave(500, 7.5, 2.0, 10000.0);
 
 
     plotGraph(ui->customPlot_adxl_x, sampleIndex, xAdxl);
@@ -955,7 +955,7 @@ void MainWindow::makePacket4100InclList(QList<QByteArray> &rawPacket4100InclList
         {
             plot->graph(0)->setData(x, y);
             plot->rescaleAxes();
-            plot->replot();
+            plot->replot(QCustomPlot::rpQueuedReplot);
         }
     };
 
@@ -969,132 +969,261 @@ void MainWindow::makePacket4100InclList(QList<QByteArray> &rawPacket4100InclList
 
 }
 
-void MainWindow::saveAllSensorDataToExcel(const QVector<double> &adxlIndex,
-                                          const QVector<double> &xAdxl,
-                                          const QVector<double> &yAdxl,
-                                          const QVector<double> &zAdxl,
-                                          const QVector<double> &tempIndex,
-                                          const QVector<double> &temperature,
-                                          const QVector<double> &inclIndex,
-                                          const QVector<double> &inclX,
-                                          const QVector<double> &inclY)
+bool MainWindow::saveAllSensorDataToExcel(
+        const QVector<double> &adxlIndex,
+        const QVector<double> &xAdxl,
+        const QVector<double> &yAdxl,
+        const QVector<double> &zAdxl,
+        const QVector<double> &tempIndex,
+        const QVector<double> &temperature,
+        const QVector<double> &inclIndex,
+        const QVector<double> &inclX,
+        const QVector<double> &inclY,
+        const QString &fullPath)
 {
-
-    Q_UNUSED(inclIndex);
-
     QXlsx::Document xlsx;
 
-    // ---------- HEADER FORMAT ----------
+    // =========================================================
+    // EXCEL LIMITS
+    // =========================================================
+
+    const int MAX_ROWS = 1048576;
+    const int DATA_START_ROW = 6;
+
+    // =========================================================
+    // FORMATS
+    // =========================================================
+
     QXlsx::Format headerFormat;
     headerFormat.setFontBold(true);
-    headerFormat.setHorizontalAlignment(QXlsx::Format::AlignHCenter);
-    headerFormat.setBorderStyle(QXlsx::Format::BorderThin);
+    headerFormat.setHorizontalAlignment(
+                QXlsx::Format::AlignHCenter);
+    headerFormat.setBorderStyle(
+                QXlsx::Format::BorderThin);
+
     QXlsx::Format headerFormat1;
     headerFormat1.setFontBold(true);
-    headerFormat1.setHorizontalAlignment(QXlsx::Format::AlignHCenter);
-    headerFormat1.setBorderStyle(QXlsx::Format::BorderThin);
+    headerFormat1.setHorizontalAlignment(
+                QXlsx::Format::AlignHCenter);
+    headerFormat1.setBorderStyle(
+                QXlsx::Format::BorderThin);
     headerFormat1.setFontSize(16);
 
-    // ---------- DATA FORMAT ----------
     QXlsx::Format dataFormat;
-    dataFormat.setBorderStyle(QXlsx::Format::BorderThin);
+    dataFormat.setBorderStyle(
+                QXlsx::Format::BorderThin);
 
-    // ---------------- HEADERS ----------------
-    xlsx.mergeCells("A1:B1");
-    xlsx.write("A1","Raw  Sensor Data",headerFormat1);
-    xlsx.write("A2","Event ID",headerFormat);
-    xlsx.write("B2",eventId);
-    xlsx.write("D2","StartTime",headerFormat);
-    xlsx.write("E2",formattedStart);
-    xlsx.write("G2","EndTime",headerFormat);
-    xlsx.write("H2",formattedEnd);
-    xlsx.write("A3","ADXL freq",headerFormat);
-    xlsx.write("B3",adxlFreq);
-    xlsx.write("D3","Inclinometer freq",headerFormat);
-    xlsx.write("E3",InclinometerFreq);
+    // =========================================================
+    // SHEET CREATION HELPER
+    // =========================================================
 
-    xlsx.write("A5", "Samples", headerFormat);
-    xlsx.write("B5", "ADXL X (g)",   headerFormat);
-    xlsx.write("C5", "ADXL Y (g)",   headerFormat);
-    xlsx.write("D5", "ADXL Z (g)",   headerFormat);
+    int sheetNumber = 1;
 
-    xlsx.write("F5", "Temp Index",   headerFormat);
-    xlsx.write("G5", "Temperature (°C)", headerFormat);
-
-    xlsx.write("I5", "Incl Index",   headerFormat);
-    xlsx.write("J5", "Incl X (deg)", headerFormat);
-    xlsx.write("K5", "Incl Y (deg)", headerFormat);
-
-    // ---------- COLUMN WIDTHS ----------
-    xlsx.setColumnWidth(1, 1, 12);   // Index
-    xlsx.setColumnWidth(2, 4, 16);   // ADXL X,Y,Z
-    xlsx.setColumnWidth(6, 7, 16);   // Temperature
-    xlsx.setColumnWidth(9, 11, 16);  // Inclinometer
-
-    int row = 6;
-
-    // ------------ ADXL Values --------------
-    for (int i = 0; i < xAdxl.size(); i++)
+    auto setupCommonHeaders =
+            [&]()
     {
-        xlsx.write(row, 1, adxlIndex[i], dataFormat);
-        xlsx.write(row, 2, xAdxl[i],     dataFormat);
-        xlsx.write(row, 3, yAdxl[i],     dataFormat);
-        xlsx.write(row, 4, zAdxl[i],     dataFormat);
+        // TABLE HEADERS
+
+        xlsx.write("A5", "Samples", headerFormat);
+        xlsx.write("B5", "ADXL X (g)", headerFormat);
+        xlsx.write("C5", "ADXL Y (g)", headerFormat);
+        xlsx.write("D5", "ADXL Z (g)", headerFormat);
+
+        xlsx.write("F5", "Temp Index", headerFormat);
+        xlsx.write("G5", "Temperature (°C)", headerFormat);
+
+        xlsx.write("I5", "Incl Index", headerFormat);
+        xlsx.write("J5", "Incl X (deg)", headerFormat);
+        xlsx.write("K5", "Incl Y (deg)", headerFormat);
+
+        // COLUMN WIDTHS
+
+        xlsx.setColumnWidth(1, 1, 12);
+        xlsx.setColumnWidth(2, 4, 16);
+        xlsx.setColumnWidth(6, 7, 16);
+        xlsx.setColumnWidth(9, 11, 16);
+    };
+
+    auto createNewSheet =
+            [&](bool firstSheet = false)
+    {
+        QString sheetName =
+                QString("Sheet_%1")
+                .arg(sheetNumber++);
+
+        if(firstSheet)
+        {
+            xlsx.renameSheet("Sheet1",
+                             sheetName);
+        }
+        else
+        {
+            xlsx.addSheet(sheetName);
+        }
+
+        xlsx.selectSheet(sheetName);
+
+        // =====================================================
+        // SUMMARY ONLY FOR FIRST SHEET
+        // =====================================================
+
+        if(firstSheet)
+        {
+            xlsx.mergeCells("A1:B1");
+
+            xlsx.write("A1",
+                       "Raw Sensor Data",
+                       headerFormat1);
+
+            xlsx.write("A2",
+                       "Event ID",
+                       headerFormat);
+
+            xlsx.write("B2",
+                       eventId);
+
+            xlsx.write("D2",
+                       "StartTime",
+                       headerFormat);
+
+            xlsx.write("E2",
+                       formattedStart);
+
+            xlsx.write("G2",
+                       "EndTime",
+                       headerFormat);
+
+            xlsx.write("H2",
+                       formattedEnd);
+
+            xlsx.write("A3",
+                       "ADXL freq",
+                       headerFormat);
+
+            xlsx.write("B3",
+                       adxlFreq);
+
+            xlsx.write("D3",
+                       "Inclinometer freq",
+                       headerFormat);
+
+            xlsx.write("E3",
+                       InclinometerFreq);
+        }
+
+        // COMMON TABLE HEADERS
+        setupCommonHeaders();
+    };
+
+    // =========================================================
+    // CREATE FIRST SHEET
+    // =========================================================
+
+    createNewSheet(true);
+
+    int row = DATA_START_ROW;
+
+    // =========================================================
+    // FIND MAXIMUM DATA SIZE
+    // =========================================================
+
+    int maxSize = qMax(
+                qMax(xAdxl.size(),
+                     temperature.size()),
+                inclX.size());
+
+    // =========================================================
+    // WRITE DATA
+    // =========================================================
+
+    for(int i = 0; i < maxSize; i++)
+    {
+        // =====================================================
+        // CREATE NEW SHEET IF LIMIT REACHED
+        // =====================================================
+
+        if(row > MAX_ROWS)
+        {
+            createNewSheet(false);
+
+            row = DATA_START_ROW;
+        }
+
+        // =====================================================
+        // ADXL DATA
+        // =====================================================
+
+        if(i < xAdxl.size())
+        {
+            xlsx.write(row,
+                       1,
+                       adxlIndex[i],
+                       dataFormat);
+
+            xlsx.write(row,
+                       2,
+                       xAdxl[i],
+                       dataFormat);
+
+            xlsx.write(row,
+                       3,
+                       yAdxl[i],
+                       dataFormat);
+
+            xlsx.write(row,
+                       4,
+                       zAdxl[i],
+                       dataFormat);
+        }
+
+        // =====================================================
+        // TEMPERATURE DATA
+        // =====================================================
+
+        if(i < temperature.size())
+        {
+            xlsx.write(row,
+                       6,
+                       tempIndex[i],
+                       dataFormat);
+
+            xlsx.write(row,
+                       7,
+                       temperature[i],
+                       dataFormat);
+        }
+
+        // =====================================================
+        // INCLINOMETER DATA
+        // =====================================================
+
+        if(i < inclX.size())
+        {
+            xlsx.write(row,
+                       9,
+                       inclIndex[i],
+                       dataFormat);
+
+            xlsx.write(row,
+                       10,
+                       inclX[i],
+                       dataFormat);
+
+            xlsx.write(row,
+                       11,
+                       inclY[i],
+                       dataFormat);
+        }
+
         row++;
     }
 
-    // ------------ Temperature Values --------------
-    int tRow = 6;
-    for (int i = 0; i < temperature.size(); i++)
-    {
-        xlsx.write(tRow, 6, tempIndex[i],   dataFormat);
-        xlsx.write(tRow, 7, temperature[i], dataFormat);
-        tRow++;
-    }
+    // =========================================================
+    // SAVE FILE
+    // =========================================================
 
-    // ------------ Inclinometer Values --------------
-    int iRow = 6;
-    for (int i = 0; i < inclX.size(); i++)
-    {
-        xlsx.write(iRow, 9,  i+1, dataFormat);
-        xlsx.write(iRow, 10, inclX[i],     dataFormat);
-        xlsx.write(iRow, 11, inclY[i],     dataFormat);
-        iRow++;
-    }
-
-    // ---------------- SIMPLE FILE DIALOG ----------------
-    QString defaultName = QString("SensorData_%1.xlsx")
-            .arg(QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss"));
-
-    QString desktopPath = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
-
-    QString fullPath = QFileDialog::getSaveFileName(
-                this,
-                "Save Sensor Data",
-                desktopPath + "/" + defaultName,
-                "Excel Files (*.xlsx)"
-    );
-
-    if (fullPath.isEmpty()) {
-        QMessageBox::information(this, "Save Cancelled",
-                                 "User cancelled the file save operation.");
-        return;
-    }
-
-    if (!fullPath.endsWith(".xlsx", Qt::CaseInsensitive))
-        fullPath += ".xlsx";
-
-    // ---------------- SAVE ----------------
-    if (xlsx.saveAs(fullPath)) {
-        QMessageBox::information(this, "Success",
-                                 "Sensor data saved successfully at:\n" + fullPath);
-    } else {
-        QMessageBox::critical(this, "Save Failed",
-                              "Failed to save Excel file.\nCheck permissions or try another location.");
-    }
+    return xlsx.saveAs(fullPath);
 }
-
-
 void MainWindow::initializeSensorVectors()
 {
     // --- ADXL ---
@@ -1306,7 +1435,7 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
                          << "possible footer" << maybeFooter.toHex();
 
                 writeToNotes("Unknown header: " + header.toHex(' ').toUpper() +
-                              " | possible footer: " + maybeFooter.toHex(' ').toUpper());
+                             " | possible footer: " + maybeFooter.toHex(' ').toUpper());
 
                 invalidHeaderCount++;
                 i = next;  // skip full 4100 bytes
@@ -1340,25 +1469,91 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
         makePacket4100AdxlTempList(packet4100AdxlList,packetTemperatureList);
         makePacket4100InclList(packet4100InclList);
 
-           if (dlgPlot) {
-                dlgPlot->close();
-                dlgPlot = nullptr;
-              }
-
-
-        QDialog *excelSavingDialog = createPleaseWaitDialog("⏳ Please Wait, Data Saving ...");
-
-        saveAllSensorDataToExcel(
-            finalAdxlIndex, finalXAdxl, finalYAdxl, finalZAdxl,
-            finalTempIndex, finalTemperature,
-            finalInclIndex, finalInclX, finalInclY
-        );
-
-        if(excelSavingDialog)
-        {
-            excelSavingDialog->close();
-            excelSavingDialog = nullptr;
+        if (dlgPlot) {
+            dlgPlot->close();
+            dlgPlot = nullptr;
         }
+
+        // NEW CODE : 8May2026 --------------------------------- BEGIN
+
+        QString defaultName =
+                QString("SensorData_%1.xlsx")
+                .arg(QDateTime::currentDateTime()
+                     .toString("yyyyMMdd_HHmmss"));
+
+        QString desktopPath =
+                QStandardPaths::writableLocation(
+                    QStandardPaths::DesktopLocation);
+
+        QString fullPath =
+                QFileDialog::getSaveFileName(
+                    this,
+                    "Save Sensor Data",
+                    desktopPath + "/" + defaultName,
+                    "Excel Files (*.xlsx)");
+
+        if(fullPath.isEmpty())
+        {
+            return;
+        }
+
+        QDialog *excelSavingDialog =
+                createPleaseWaitDialog(
+                    "⏳ Please Wait, Data Saving ..."
+                );
+
+        QFutureWatcher<bool> *watcher =
+                new QFutureWatcher<bool>(this);
+
+        connect(watcher,
+                &QFutureWatcher<bool>::finished,
+                this,
+                [=]()
+        {
+            bool ok = watcher->result();
+
+            if(excelSavingDialog)
+            {
+                excelSavingDialog->close();
+                excelSavingDialog->deleteLater();
+            }
+
+            watcher->deleteLater();
+
+            if(ok)
+            {
+                QMessageBox::information(
+                            this,
+                            "Success",
+                            "Excel data saved successfully.");
+            }
+            else
+            {
+                QMessageBox::critical(
+                            this,
+                            "Error",
+                            "Failed to save excel file.");
+            }
+        });
+
+        watcher->setFuture(
+                    QtConcurrent::run([=]()
+        {
+            return saveAllSensorDataToExcel(
+                        finalAdxlIndex,
+                        finalXAdxl,
+                        finalYAdxl,
+                        finalZAdxl,
+                        finalTempIndex,
+                        finalTemperature,
+                        finalInclIndex,
+                        finalInclX,
+                        finalInclY,
+                        fullPath);
+        }));
+
+        // NEW CODE : 8May2026 --------------------------------- END
+
 
     }
     // Get Event Data Command Nack Condition mdgId 0x01
@@ -1377,17 +1572,17 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
     else if(data==QByteArray::fromHex("54 53 41 43 4B"))
     {
         if(!ui->checkBox_livePlot->isChecked())
-         {
-        dlg = createPleaseWaitDialog("⏳ Please Wait Data Logging ...",ui->spinBox_logTime->value());
+        {
+            dlg = createPleaseWaitDialog("⏳ Please Wait Data Logging ...",ui->spinBox_logTime->value());
         }
-//        QTimer::singleShot(12000,[this](){
-//            if(dlg)
-//            {
-//                dlg->close();
-//                dlg = nullptr;
-//                QMessageBox::critical(this,"Failed","Failed To Log Data !");
-//            }
-//        });
+        //        QTimer::singleShot(12000,[this](){
+        //            if(dlg)
+        //            {
+        //                dlg->close();
+        //                dlg = nullptr;
+        //                QMessageBox::critical(this,"Failed","Failed To Log Data !");
+        //            }
+        //        });
     }
 
     // Start Log End Initial Command msgId 0x02
@@ -1411,8 +1606,8 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
         ui->tableWidget_getLogEvents->setRowCount(0);
         ui->tableWidget_getLogEvents->setColumnCount(3);
         ui->tableWidget_getLogEvents->setHorizontalHeaderLabels(
-            QStringList() << "Event ID" << "Start Time and Date" << "End Time and Date"
-        );
+                    QStringList() << "Event ID" << "Start Time and Date" << "End Time and Date"
+                    );
 
         int segmentCount = 0;
         int totalPacketsParsed = 0;
@@ -1454,8 +1649,8 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
                 for (auto b : startTimeBytes)
                     startParts.append(QString("%1").arg(static_cast<quint8>(b), 2, 10, QChar('0')));
                 QString formattedStart = QString("%1:%2:%3 %4/%5/%6")
-                    .arg(startParts[0]).arg(startParts[1]).arg(startParts[2])
-                    .arg(startParts[3]).arg(startParts[4]).arg(startParts[5]);
+                        .arg(startParts[0]).arg(startParts[1]).arg(startParts[2])
+                        .arg(startParts[3]).arg(startParts[4]).arg(startParts[5]);
 
                 // --- Extract End Time ---
                 QByteArray endTimeBytes = packet.mid(26, 6);
@@ -1463,8 +1658,8 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
                 for (auto b : endTimeBytes)
                     endParts.append(QString("%1").arg(static_cast<quint8>(b), 2, 10, QChar('0')));
                 QString formattedEnd = QString("%1:%2:%3 %4/%5/%6")
-                    .arg(endParts[0]).arg(endParts[1]).arg(endParts[2])
-                    .arg(endParts[3]).arg(endParts[4]).arg(endParts[5]);
+                        .arg(endParts[0]).arg(endParts[1]).arg(endParts[2])
+                        .arg(endParts[3]).arg(endParts[4]).arg(endParts[5]);
 
                 // --- Insert into Table ---
                 int row = ui->tableWidget_getLogEvents->rowCount();
@@ -1507,11 +1702,32 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
     {
         QDialog *excelSavingDialog = createPleaseWaitDialog("⏳ Please Wait, Data Saving ...");
 
+        QString defaultName =
+                QString("SensorData_%1.xlsx")
+                .arg(QDateTime::currentDateTime()
+                     .toString("yyyyMMdd_HHmmss"));
+
+        QString desktopPath =
+                QStandardPaths::writableLocation(
+                    QStandardPaths::DesktopLocation);
+
+        QString fullPath =
+                QFileDialog::getSaveFileName(
+                    this,
+                    "Save Sensor Data",
+                    desktopPath + "/" + defaultName,
+                    "Excel Files (*.xlsx)");
+
+        if(fullPath.isEmpty())
+        {
+            return;
+        }
+
         saveAllSensorDataToExcel(
-            finalAdxlIndex, finalXAdxl, finalYAdxl, finalZAdxl,
-            finalTempIndex, finalTemperature,
-            finalInclIndex, finalInclX, finalInclY
-        );
+                    finalAdxlIndex, finalXAdxl, finalYAdxl, finalZAdxl,
+                    finalTempIndex, finalTemperature,
+                    finalInclIndex, finalInclX, finalInclY,
+                    fullPath);
 
         if(excelSavingDialog)
         {
@@ -1523,14 +1739,14 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
 
     }
     else if(data.startsWith(QByteArray::fromHex("53 54 54"))&& data.size()==6){
-            quint8 third = static_cast<quint8>(data[3]);
-            quint8 fourth  = static_cast<quint8>(data[4]);
+        quint8 third = static_cast<quint8>(data[3]);
+        quint8 fourth  = static_cast<quint8>(data[4]);
 
-            quint16 remainingLogs = (third << 8) | fourth;
+        quint16 remainingLogs = (third << 8) | fourth;
 
-            QMessageBox::information(nullptr,
-                                     "Remaining Logs",
-                                     "Remaining log count: " + QString::number(remainingLogs));
+        QMessageBox::information(nullptr,
+                                 "Remaining Logs",
+                                 "Remaining log count: " + QString::number(remainingLogs));
 
     }
     else if (data.startsWith(QByteArray::fromHex("53 54 55")) && data.size() == 17)
@@ -1569,7 +1785,7 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
         quint8 lsb_ADXL  = static_cast<quint8>(ADXL[0]);   // LSB
         quint8 msb_ADXL = static_cast<quint8>(ADXL[1]);
         quint16 ADXL_freq = (msb_ADXL<< 8) | lsb_ADXL;
-         qDebug()<<"ADXL Received"<<ADXL.toHex();
+        qDebug()<<"ADXL Received"<<ADXL.toHex();
 
         QByteArray inclinometer = payload.mid(11, 2);
         quint8 lsb_inc  = static_cast<quint8>(inclinometer[0]);   // LSB
@@ -1580,7 +1796,7 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
 
         ui->spinBox_logTime->setValue(logTime);
         ui->spinBox_threshold->setValue(threshold);
-         ui->spinBox_samplingfrequency->setValue(ADXL_freq);
+        ui->spinBox_samplingfrequency->setValue(ADXL_freq);
         ui->spinBox_Inclinometer->setValue(inclinometer_val);
 
         blinkWidget(ui->spinBox_logTime);
@@ -1606,23 +1822,23 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
     else if(data==QByteArray::fromHex("53 54 48")){
         QMessageBox::information(this,"Battery off","Battery in off condition");
     }
-     else if(data.startsWith(QByteArray::fromHex("53 54 44"))){
+    else if(data.startsWith(QByteArray::fromHex("53 54 44"))){
         QMessageBox::information(this,"logTime","Log time has set Successfully");
 
     }
     else if(data.startsWith(QByteArray::fromHex("53 54 51"))){
-       QMessageBox::information(this,"Threshold","Threshold has set successfully.");
+        QMessageBox::information(this,"Threshold","Threshold has set successfully.");
     }
     else if(data.startsWith(QByteArray::fromHex("53 54 49")))
     {
-     QMessageBox::information(this,"DateTime","Date time has set successfully.");
+        QMessageBox::information(this,"DateTime","Date time has set successfully.");
     }
-     else if(data.startsWith(QByteArray::fromHex("53 54 52")))
+    else if(data.startsWith(QByteArray::fromHex("53 54 52")))
     {
-       QMessageBox::information(this,"ADXL Frequency","ADXL frequency has set successfully.");
+        QMessageBox::information(this,"ADXL Frequency","ADXL frequency has set successfully.");
     }
     else if(data.startsWith(QByteArray::fromHex("53 54 53"))){
-         QMessageBox::information(this,"Inclinometer","Inclinometer frequency has set successfully.");
+        QMessageBox::information(this,"Inclinometer","Inclinometer frequency has set successfully.");
 
     }
 }
@@ -1638,9 +1854,9 @@ void MainWindow::on_pushButton_calibrateScreen_clicked()
     QSettings settings("settings.ini", QSettings::IniFormat);
 
     QMessageBox::StandardButton choice = QMessageBox::question(
-        this, "Calibrate Screen",
-        "Do you want to enter custom screen details (width, height, diagonal) or reset to system default?",
-        QMessageBox::Yes | QMessageBox::No);
+                this, "Calibrate Screen",
+                "Do you want to enter custom screen details (width, height, diagonal) or reset to system default?",
+                QMessageBox::Yes | QMessageBox::No);
 
     if (choice == QMessageBox::No) {
         // Reset to default
@@ -1666,9 +1882,9 @@ void MainWindow::on_pushButton_calibrateScreen_clicked()
     if (!ok) return;
 
     double diagonalInches = QInputDialog::getDouble(
-        this, "Screen Diagonal",
-        "Enter screen diagonal size (in inches):",
-        settings.value("Display/diagonal", 14.0).toDouble(), 3.0, 100.0, 1, &ok);
+                this, "Screen Diagonal",
+                "Enter screen diagonal size (in inches):",
+                settings.value("Display/diagonal", 14.0).toDouble(), 3.0, 100.0, 1, &ok);
     if (!ok) return;
 
     // Calculate DPI
@@ -1799,21 +2015,55 @@ void MainWindow::on_pushButton_stopPlot_clicked()
     emit sendMsgId(0x04);
     //serialObj->writeData(command);
 
-    (!finalAdxlIndex.isEmpty() &&
-     !finalXAdxl.isEmpty() &&
-     !finalYAdxl.isEmpty() &&
-     !finalZAdxl.isEmpty() &&
-     !finalTempIndex.isEmpty() &&
-     !finalTemperature.isEmpty() &&
-     !finalInclIndex.isEmpty() &&
-     !finalInclX.isEmpty() &&
-     !finalInclY.isEmpty())? saveAllSensorDataToExcel(
-                                 finalAdxlIndex, finalXAdxl, finalYAdxl, finalZAdxl,
-                                 finalTempIndex, finalTemperature,
-                                 finalInclIndex, finalInclX, finalInclY
-                             ):
+    QString defaultName =
+            QString("SensorData_%1.xlsx")
+            .arg(QDateTime::currentDateTime()
+                 .toString("yyyyMMdd_HHmmss"));
 
-        (void)QMessageBox::warning(this, "No Data", "vectors are empty!");
+    QString desktopPath =
+            QStandardPaths::writableLocation(
+                QStandardPaths::DesktopLocation);
+
+    QString fullPath =
+            QFileDialog::getSaveFileName(
+                this,
+                "Save Sensor Data",
+                desktopPath + "/" + defaultName,
+                "Excel Files (*.xlsx)");
+
+    if(fullPath.isEmpty())
+    {
+        return;
+    }
+
+    if (!finalAdxlIndex.isEmpty() &&
+        !finalXAdxl.isEmpty() &&
+        !finalYAdxl.isEmpty() &&
+        !finalZAdxl.isEmpty() &&
+        !finalTempIndex.isEmpty() &&
+        !finalTemperature.isEmpty() &&
+        !finalInclIndex.isEmpty() &&
+        !finalInclX.isEmpty() &&
+        !finalInclY.isEmpty())
+    {
+        saveAllSensorDataToExcel(
+                    finalAdxlIndex,
+                    finalXAdxl,
+                    finalYAdxl,
+                    finalZAdxl,
+                    finalTempIndex,
+                    finalTemperature,
+                    finalInclIndex,
+                    finalInclX,
+                    finalInclY,
+                    fullPath);
+    }
+    else
+    {
+        QMessageBox::warning(this,
+                             "No Data",
+                             "Vectors are empty!");
+    }
 }
 
 void MainWindow::on_pushButton_enlargePlot_clicked()
@@ -1905,11 +2155,11 @@ void MainWindow::on_pushButton_saveLogPlots_clicked()
 
     // Ask user where to save (with default pre-filled)
     QString selectedFile = QFileDialog::getSaveFileName(
-        this,
-        tr("Save Log Data"),
-        defaultFullPath,
-        tr("Excel Files (*.xlsx)")
-    );
+                this,
+                tr("Save Log Data"),
+                defaultFullPath,
+                tr("Excel Files (*.xlsx)")
+                );
 
     if (selectedFile.isEmpty())
         return; // user cancelled
@@ -1984,25 +2234,25 @@ void MainWindow::on_pushButton_clearLogPlots_clicked()
 void MainWindow::on_pushButton_clearPlots_clicked()
 {
     // Clear all plot graphs
-     QList<QCustomPlot*> allPlots = {
-         ui->customPlot_adxl_x,
-         ui->customPlot_adxl_y,
-         ui->customPlot_adxl_z,
-         ui->customPlot_inclinometer_x,
-         ui->customPlot_inclinometer_y,
-         ui->customPlot_temperature
-     };
+    QList<QCustomPlot*> allPlots = {
+        ui->customPlot_adxl_x,
+        ui->customPlot_adxl_y,
+        ui->customPlot_adxl_z,
+        ui->customPlot_inclinometer_x,
+        ui->customPlot_inclinometer_y,
+        ui->customPlot_temperature
+    };
 
-     for (QCustomPlot *plot : allPlots)
-     {
-         if (plot) {
-             for (int i = 0; i < plot->graphCount(); ++i)
-                 plot->graph(i)->data()->clear();
-             plot->replot();
-         }
-     }
+    for (QCustomPlot *plot : allPlots)
+    {
+        if (plot) {
+            for (int i = 0; i < plot->graphCount(); ++i)
+                plot->graph(i)->data()->clear();
+            plot->replot();
+        }
+    }
 
-     writeToNotes("All log plots are cleared.");
+    writeToNotes("All log plots are cleared.");
 }
 void MainWindow::on_pushButton_fitToScreen_fft_clicked()
 {
@@ -2016,28 +2266,28 @@ void MainWindow::on_pushButton_fitToScreen_fft_clicked()
     {
         if (!plot) continue;
 
-            bool hasData = false;
+        bool hasData = false;
 
-            for (int i = 0; i < plot->graphCount(); ++i)
+        for (int i = 0; i < plot->graphCount(); ++i)
+        {
+            if (plot->graph(i)->dataCount() > 0)
             {
-                if (plot->graph(i)->dataCount() > 0)
-                {
-                    hasData = true;
-                    break;
-                }
+                hasData = true;
+                break;
             }
+        }
 
-            if (!hasData)
-            {
-                qDebug() << "Fit to screen failed: No data!";
-                return;
-            }
+        if (!hasData)
+        {
+            qDebug() << "Fit to screen failed: No data!";
+            return;
+        }
 
-            plot->xAxis->rescale(true);
-            plot->yAxis->rescale(true);
+        plot->xAxis->rescale(true);
+        plot->yAxis->rescale(true);
 
-            plot->replot();
-}
+        plot->replot();
+    }
 }
 
 
@@ -2054,7 +2304,7 @@ void MainWindow::on_pushButton_clearPoints_fft_clicked()
             QCPAbstractItem *item = plot->item(i);
 
             if (qobject_cast<QCPItemTracer*>(item) ||
-                qobject_cast<QCPItemText*>(item))
+                    qobject_cast<QCPItemText*>(item))
             {
                 plot->removeItem(item);   // correct way to delete item
             }
@@ -2131,7 +2381,7 @@ void MainWindow::on_pushButton_setTime_clicked()
     // Example: append to packet
     QByteArray packet=QByteArray::fromHex("535449");
     packet.append(static_cast<char>(day));
-     packet.append(static_cast<char>(month));
+    packet.append(static_cast<char>(month));
     packet.append(static_cast<char>(year - 2000)); // if protocol needs 2-digit year
     packet.append(static_cast<char>(hour));
     packet.append(static_cast<char>(minute));
@@ -2152,29 +2402,29 @@ void MainWindow::on_pushButton_ADXLfrequency_clicked()
         QMessageBox::information(this,"out of Range","Enter the value between 1 and 20000");
         return;
     }
-     QByteArray packet=QByteArray::fromHex("535452");
-     quint16 value=ui->spinBox_samplingfrequency->value();
-     packet.append(static_cast<char>((value >> 8) & 0xFF));
-     packet.append(static_cast<char>(value & 0xFF));
-     packet.append(static_cast<char>(0xFF));
-     qDebug()<<"adxl sent"<<packet.toHex();
-     serialObj->writeData(packet);
-     emit sendMsgId(0x10);
+    QByteArray packet=QByteArray::fromHex("535452");
+    quint16 value=ui->spinBox_samplingfrequency->value();
+    packet.append(static_cast<char>((value >> 8) & 0xFF));
+    packet.append(static_cast<char>(value & 0xFF));
+    packet.append(static_cast<char>(0xFF));
+    qDebug()<<"adxl sent"<<packet.toHex();
+    serialObj->writeData(packet);
+    emit sendMsgId(0x10);
 }
 void MainWindow::on_pushButton_inclinometerFrequency_clicked()
 {
     responseTimer->start(2000);
-  if(ui->spinBox_Inclinometer->value()>1000||ui->spinBox_Inclinometer->value()<1){
-      QMessageBox::information(this,"out of Range","Enter the value between 1 and 1000");
-      return;
-  }
-  QByteArray packet=QByteArray::fromHex("535453");
-  quint16 value=ui->spinBox_Inclinometer->value();
-  packet.append(static_cast<char>((value >> 8) & 0xFF));
-  packet.append(static_cast<char>(value & 0xFF));
-  packet.append(static_cast<char>(0xFF));
-  serialObj->writeData(packet);
-  emit sendMsgId(0x10);
+    if(ui->spinBox_Inclinometer->value()>1000||ui->spinBox_Inclinometer->value()<1){
+        QMessageBox::information(this,"out of Range","Enter the value between 1 and 1000");
+        return;
+    }
+    QByteArray packet=QByteArray::fromHex("535453");
+    quint16 value=ui->spinBox_Inclinometer->value();
+    packet.append(static_cast<char>((value >> 8) & 0xFF));
+    packet.append(static_cast<char>(value & 0xFF));
+    packet.append(static_cast<char>(0xFF));
+    serialObj->writeData(packet);
+    emit sendMsgId(0x10);
 
 }
 
@@ -2183,14 +2433,14 @@ void MainWindow::on_pushButton_remainingLogs_clicked()
     responseTimer->start(2000);
     QByteArray packet=QByteArray::fromHex("535454");
     serialObj->writeData(packet);
-     emit sendMsgId(0x05);
+    emit sendMsgId(0x05);
 }
 void MainWindow::on_pushButton_currentParameters_clicked()
 {
     responseTimer->start(2000);
     QByteArray packet=QByteArray::fromHex("535455");
     serialObj->writeData(packet);
-     emit sendMsgId(0x06);
+    emit sendMsgId(0x06);
 
 }
 void MainWindow::on_pushButton_erase_clicked()
@@ -2201,11 +2451,11 @@ void MainWindow::on_pushButton_erase_clicked()
     reply = QMessageBox::question(this, "Confirm", "Do you want to Erase logs?",
                                   QMessageBox::Yes | QMessageBox::No);
     if (reply == QMessageBox::Yes) {
-    emit sendMsgId(0x07);
-    serialObj->writeData(eraseCmd);
+        emit sendMsgId(0x07);
+        serialObj->writeData(eraseCmd);
     }
     else{
-       QMessageBox::information(this,"Cancelled","User cancel the erase logs");
+        QMessageBox::information(this,"Cancelled","User cancel the erase logs");
     }
 }
 void MainWindow::on_pushButton_on_clicked()
@@ -2377,7 +2627,7 @@ void MainWindow::computeAndPlotFFT(const QVector<double>& signal,
         plot->xAxis->setRange(0, Fs/2);   // do NOT auto-rescale X
         plot->yAxis->rescale();           // only Y auto-scale
 
-        plot->replot();
+        plot->replot(QCustomPlot::rpQueuedReplot);
     }
 }
 
@@ -2503,53 +2753,53 @@ void MainWindow::dataProcessing(const QByteArray &byteArrayData)
             }
         }
 
-     makePacket4100AdxlLive(packet4100Adxl);
+        makePacket4100AdxlLive(packet4100Adxl);
 
-}
+    }
     else if(data.startsWith(QByteArray::fromHex("EE FF FF")))
     {
-                 QByteArray packet4100 = data;
-                if (packet4100.endsWith(QByteArray::fromHex("CC DD")))
-                {
-                     packet4100.remove(packet4100.size()-62,60);
+        QByteArray packet4100 = data;
+        if (packet4100.endsWith(QByteArray::fromHex("CC DD")))
+        {
+            packet4100.remove(packet4100.size()-62,60);
 
-                    if(packet4100.contains(QByteArray::fromHex("FF FF FF FF FF FF")))
-                    {
-                        // Special condition FF's checking
-                        QByteArray specialPacket = packet4100;
+            if(packet4100.contains(QByteArray::fromHex("FF FF FF FF FF FF")))
+            {
+                // Special condition FF's checking
+                QByteArray specialPacket = packet4100;
 
-                        qDebug()<<"Consecutive FF's detected at packet [INCLINOMETER]: "+QString::number(packet4100Incl.size());
-                        writeToNotes("Consecutive FF's detected at packet [INCLINOMETER]: " + QString::number(packet4100Incl.size()));
-
-
-                        int fIndex = specialPacket.indexOf(QByteArray::fromHex("FF FF FF FF FF FF"));
-                        qDebug()<<fIndex<<" :fIndex";
-
-                        qDebug()<< "Removing ff bytes count [INCLINOMETER]: " << (specialPacket.size() - fIndex) - 5;
-                        writeToNotes("Removing ff bytes count [INCLINOMETER]: " + QString::number((specialPacket.size() - fIndex) - 5));
-
-                        specialPacket.remove(fIndex,(specialPacket.size() - fIndex) - 5);
+                qDebug()<<"Consecutive FF's detected at packet [INCLINOMETER]: "+QString::number(packet4100Incl.size());
+                writeToNotes("Consecutive FF's detected at packet [INCLINOMETER]: " + QString::number(packet4100Incl.size()));
 
 
-                        packet4100Incl.append(specialPacket);
-                        qDebug()<<specialPacket.toHex(' ').toUpper()<<" :specialPacket";
+                int fIndex = specialPacket.indexOf(QByteArray::fromHex("FF FF FF FF FF FF"));
+                qDebug()<<fIndex<<" :fIndex";
 
-                        // writeToNotes Log
-                        writeToNotes("fIndex (start of FFs) [INCLINOMETER]: " + QString::number(fIndex));
-                        writeToNotes("specialPacket [INCLINOMETER]: " + specialPacket.toHex(' ').toUpper());
-                    }
-                    else
-                    {
-                        // Normal condition
-                        packet4100Incl.append(packet4100);
-                    }
-                }
-                else
-                {
-                    invalidHeaderCount++;
-                }
-                makePacket4100InclLive(packet4100Incl);
+                qDebug()<< "Removing ff bytes count [INCLINOMETER]: " << (specialPacket.size() - fIndex) - 5;
+                writeToNotes("Removing ff bytes count [INCLINOMETER]: " + QString::number((specialPacket.size() - fIndex) - 5));
+
+                specialPacket.remove(fIndex,(specialPacket.size() - fIndex) - 5);
+
+
+                packet4100Incl.append(specialPacket);
+                qDebug()<<specialPacket.toHex(' ').toUpper()<<" :specialPacket";
+
+                // writeToNotes Log
+                writeToNotes("fIndex (start of FFs) [INCLINOMETER]: " + QString::number(fIndex));
+                writeToNotes("specialPacket [INCLINOMETER]: " + specialPacket.toHex(' ').toUpper());
             }
+            else
+            {
+                // Normal condition
+                packet4100Incl.append(packet4100);
+            }
+        }
+        else
+        {
+            invalidHeaderCount++;
+        }
+        makePacket4100InclLive(packet4100Incl);
+    }
     else if(data==QByteArray::fromHex("53 54 50"))
     {
         qDebug()<<"stop command Received";
@@ -2577,41 +2827,41 @@ void MainWindow::makePacket4100AdxlLive(const QByteArray &rawPacket4100Adxl)
 
     // --- ADXL Data Processing ---
 
-        QByteArray packet = rawPacket4100Adxl;
+    QByteArray packet = rawPacket4100Adxl;
 
-        if (packet.size() < 20)
-        {
-            qDebug() << "Skipping too short ADXL packet:" << packet.size();
-            return;
-        }
+    if (packet.size() < 20)
+    {
+        qDebug() << "Skipping too short ADXL packet:" << packet.size();
+        return;
+    }
 
-        QByteArray trimmed = packet.mid(3);
-        if (trimmed.size() > 3) trimmed.chop(3); // remove footer
-        if (trimmed.size() > 2) trimmed.chop(2); // remove temperature bytes
+    QByteArray trimmed = packet.mid(3);
+    if (trimmed.size() > 3) trimmed.chop(3); // remove footer
+    if (trimmed.size() > 2) trimmed.chop(2); // remove temperature bytes
 
-        int usableSize = trimmed.size();
-        if (usableSize < 6)
-        {
-            qDebug() << "Packet too short after trimming:" << usableSize;
-            return;
-        }
+    int usableSize = trimmed.size();
+    if (usableSize < 6)
+    {
+        qDebug() << "Packet too short after trimming:" << usableSize;
+        return;
+    }
 
-        for (int i = 0; i + 5 < usableSize; i += 6)
-        {
-            qint16 xRaw = (static_cast<quint8>(trimmed[i])     << 8) | static_cast<quint8>(trimmed[i + 1]);
-            qint16 yRaw = (static_cast<quint8>(trimmed[i + 2]) << 8) | static_cast<quint8>(trimmed[i + 3]);
-            qint16 zRaw = (static_cast<quint8>(trimmed[i + 4]) << 8) | static_cast<quint8>(trimmed[i + 5]);
+    for (int i = 0; i + 5 < usableSize; i += 6)
+    {
+        qint16 xRaw = (static_cast<quint8>(trimmed[i])     << 8) | static_cast<quint8>(trimmed[i + 1]);
+        qint16 yRaw = (static_cast<quint8>(trimmed[i + 2]) << 8) | static_cast<quint8>(trimmed[i + 3]);
+        qint16 zRaw = (static_cast<quint8>(trimmed[i + 4]) << 8) | static_cast<quint8>(trimmed[i + 5]);
 
-            // Keep last 12 bits only first 4 bits eliminate in a 16 bit integer
-            xRaw &= 0x0FFF;
-            yRaw &= 0x0FFF;
-            zRaw &= 0x0FFF;
+        // Keep last 12 bits only first 4 bits eliminate in a 16 bit integer
+        xRaw &= 0x0FFF;
+        yRaw &= 0x0FFF;
+        zRaw &= 0x0FFF;
 
-            sampleIndex.append(globalSample++);
-            xAdxl.append((xRaw * 3.3 * 2) / 4096.0);
-            yAdxl.append((yRaw * 3.3 * 2) / 4096.0);
-            zAdxl.append((zRaw * 3.3 * 2) / 4096.0);
-        }
+        sampleIndex.append(globalSample++);
+        xAdxl.append((xRaw * 3.3 * 2) / 4096.0);
+        yAdxl.append((yRaw * 3.3 * 2) / 4096.0);
+        zAdxl.append((zRaw * 3.3 * 2) / 4096.0);
+    }
     for(int g=0;g<xAdxl.size();g++){
         xAdxl[g]=(xAdxl[g]-1.65)/0.0063;
         yAdxl[g]=(yAdxl[g]-1.65)/0.0063;
@@ -2623,44 +2873,44 @@ void MainWindow::makePacket4100AdxlLive(const QByteArray &rawPacket4100Adxl)
         qDebug() << "Fixed X-axis window set =" << adxlWindow;
     }
 
-//    quint64 memMB = getCurrentProcessMemoryMB();
-//    qDebug()<<memMB<<"memory used";
+    //    quint64 memMB = getCurrentProcessMemoryMB();
+    //    qDebug()<<memMB<<"memory used";
 
-//        if (memMB > 4000)
-//        {
-//            saveLive=false;
-//            QMessageBox::warning(this,
-//                                 "Memory Warning",
-//                                 "Data saving is stopped due to memory limitation.");
+    //        if (memMB > 4000)
+    //        {
+    //            saveLive=false;
+    //            QMessageBox::warning(this,
+    //                                 "Memory Warning",
+    //                                 "Data saving is stopped due to memory limitation.");
 
-//        }
+    //        }
 
-//        QMutexLocker locker(&dataMutex);
-//        pending_sampleIndex += sampleIndex;
-//        pending_xAdxl += xAdxl;
-//        pending_yAdxl += yAdxl;
-//        pending_zAdxl += zAdxl;
+    //        QMutexLocker locker(&dataMutex);
+    //        pending_sampleIndex += sampleIndex;
+    //        pending_xAdxl += xAdxl;
+    //        pending_yAdxl += yAdxl;
+    //        pending_zAdxl += zAdxl;
 
-        // optionally keep full history for later export
-        if(saveLive){
+    // optionally keep full history for later export
+    if(saveLive){
         full_xAdxl += xAdxl;
         full_yAdxl += yAdxl;
         full_zAdxl += zAdxl;
-         }
+    }
 
-        if (!ui->checkBox_fft->isChecked())
-        {
-            // time-domain
-            livePlot(ui->customPlot_adxl_x_live, sampleIndex, xAdxl,adxlWindow,0);
-            livePlot(ui->customPlot_adxl_y_live, sampleIndex, yAdxl,adxlWindow,0);
-            livePlot(ui->customPlot_adxl_z_live, sampleIndex, zAdxl,adxlWindow,0);
-        }
-        else
-        {
-            plotLiveFFT(xAdxl, adxlFreqL, ui->customPlot_adxl_x_live);
-            plotLiveFFT(yAdxl, adxlFreqL, ui->customPlot_adxl_y_live);
-            plotLiveFFT(zAdxl,adxlFreqL, ui->customPlot_adxl_z_live);
-        }
+    if (!ui->checkBox_fft->isChecked())
+    {
+        // time-domain
+        livePlot(ui->customPlot_adxl_x_live, sampleIndex, xAdxl,adxlWindow,0);
+        livePlot(ui->customPlot_adxl_y_live, sampleIndex, yAdxl,adxlWindow,0);
+        livePlot(ui->customPlot_adxl_z_live, sampleIndex, zAdxl,adxlWindow,0);
+    }
+    else
+    {
+        plotLiveFFT(xAdxl, adxlFreqL, ui->customPlot_adxl_x_live);
+        plotLiveFFT(yAdxl, adxlFreqL, ui->customPlot_adxl_y_live);
+        plotLiveFFT(zAdxl,adxlFreqL, ui->customPlot_adxl_z_live);
+    }
 
     qDebug() << "Total ADXL samples:" << sampleIndex.size();
 }
@@ -2723,14 +2973,14 @@ void MainWindow::makePacket4100InclLive(const QByteArray &rawPacket4100Incl)
 
         if(inclWindow<0)
         {
-         inclWindow=sampleIndex.size();
+            inclWindow=sampleIndex.size();
         }
     }
     if(saveLive)
     {
-    fullInclXL+=inclXL;
-    fullInclYL+=inclYL;
-     }
+        fullInclXL+=inclXL;
+        fullInclYL+=inclYL;
+    }
 
     livePlot(ui->customPlot_incl_x_live, sampleIndex, inclXL,inclWindow,0);
     livePlot(ui->customPlot_incl_x_live, sampleIndex, inclYL,inclWindow,1);
@@ -2754,7 +3004,7 @@ void MainWindow::makePacket4100InclLive(const QByteArray &rawPacket4100Incl)
 
 //    }
 
-    // Now update plots on GUI thread (one batch per timer tick)
+// Now update plots on GUI thread (one batch per timer tick)
 
 //}
 void MainWindow::livePlot(QCustomPlot *plot,
@@ -2803,9 +3053,9 @@ void MainWindow::plotLiveFFT(const QVector<double>& signal,
 
     }
     else
-         {
-             qDebug()<<"invalid Plot";
-         }
+    {
+        qDebug()<<"invalid Plot";
+    }
 
     QVector<double> processed = signal;
 
@@ -2815,14 +3065,14 @@ void MainWindow::plotLiveFFT(const QVector<double>& signal,
 
     performFFT(processed, magnitude, freqAxis, Fs);
 
-       for (int i = 0; i < magnitude.size(); i++)
+    for (int i = 0; i < magnitude.size(); i++)
+    {
+        if (magnitude[i] > maxPeak)
         {
-            if (magnitude[i] > maxPeak)
-            {
-                maxPeak = magnitude[i];
+            maxPeak = magnitude[i];
 
-            }
         }
+    }
 
 
 
@@ -2830,13 +3080,13 @@ void MainWindow::plotLiveFFT(const QVector<double>& signal,
 
     if (plot == ui->customPlot_adxl_x_live)
     {
-         ui->lineEdit_fftPeak_x->setText(QString::number(maxPeak));
-         maxPeak_x=maxPeak;
+        ui->lineEdit_fftPeak_x->setText(QString::number(maxPeak));
+        maxPeak_x=maxPeak;
     }
     else if (plot == ui->customPlot_adxl_y_live)
     {
-         ui->lineEdit_fftPeak_y->setText(QString::number(maxPeak));
-         maxPeak_y=maxPeak;
+        ui->lineEdit_fftPeak_y->setText(QString::number(maxPeak));
+        maxPeak_y=maxPeak;
 
     }
     else if(plot==ui->customPlot_adxl_z_live)
@@ -2846,9 +3096,9 @@ void MainWindow::plotLiveFFT(const QVector<double>& signal,
 
     }
     else
-         {
-             qDebug()<<"invalid Plot";
-         }
+    {
+        qDebug()<<"invalid Plot";
+    }
     plot->xAxis->setRange(0, Fs/2);
     plot->graph(0)->rescaleValueAxis();
     plot->replot();
@@ -2905,33 +3155,33 @@ void MainWindow::on_pushButton_stopLivePlot_clicked()
     ui->tabWidget->tabBar()->setEnabled(true);
     responseTimer->start(2000);
 
-    QByteArray stopPlot = QByteArray::fromHex("535458");  
+    QByteArray stopPlot = QByteArray::fromHex("535458");
     writeToNotes("stop command send:"+stopPlot.toHex(' ').toUpper());
     emit sendMsgId(0x11);
     serialObj->writeData(stopPlot);
 
     if (saveLimitTimer->isActive()) {
-            saveLimitTimer->stop();
-            qDebug() << "Timer stopped.";
+        saveLimitTimer->stop();
+        qDebug() << "Timer stopped.";
+    }
+
+    saveLive=false;
+
+    QTimer::singleShot(50, this, [this]() {
+        if (!full_xAdxl.isEmpty() &&
+                !full_yAdxl.isEmpty() &&
+                !full_zAdxl.isEmpty() &&
+                !fullInclXL.isEmpty() &&
+                !fullInclYL.isEmpty())
+        {
+            saveLiveData(full_xAdxl, full_yAdxl, full_zAdxl,
+                         fullInclXL, fullInclYL);
         }
-
-     saveLive=false;
-
-     QTimer::singleShot(50, this, [this]() {
-         if (!full_xAdxl.isEmpty() &&
-             !full_yAdxl.isEmpty() &&
-             !full_zAdxl.isEmpty() &&
-             !fullInclXL.isEmpty() &&
-             !fullInclYL.isEmpty())
-         {
-             saveLiveData(full_xAdxl, full_yAdxl, full_zAdxl,
-                          fullInclXL, fullInclYL);
-         }
-         else
-         {
-             QMessageBox::warning(this, "No Data", "No data to save");
-         }
-     });
+        else
+        {
+            QMessageBox::warning(this, "No Data", "No data to save");
+        }
+    });
 }
 
 void MainWindow::saveLiveData(const QVector<double> &xAdxl,
@@ -2951,7 +3201,7 @@ void MainWindow::saveLiveData(const QVector<double> &xAdxl,
                 "Save Live Data",
                 desktopPath + "/" + defaultName,
                 "Excel Files (*.xlsx)"
-    );
+                );
 
     if (fullPath.isEmpty()) {
         QMessageBox::information(this, "Save Cancelled",
@@ -2961,11 +3211,11 @@ void MainWindow::saveLiveData(const QVector<double> &xAdxl,
     if (!fullPath.endsWith(".xlsx", Qt::CaseInsensitive))
         fullPath += ".xlsx";
 
-     qDebug()<<"dilaog created";
+    qDebug()<<"dilaog created";
     // NOW show your "Please Wait" dialog after choosing folder
     QDialog* waitDlg = createPleaseWaitDialog("Data Saving... Please wait");
 
-   qDebug()<<"saving started";
+    qDebug()<<"saving started";
     // ---------------- CREATE XLSX ----------------
     QXlsx::Document xlsx;
 
@@ -3049,8 +3299,8 @@ void MainWindow::saveLiveData(const QVector<double> &xAdxl,
     bool ok = xlsx.saveAs(fullPath);
     if(waitDlg)
     {
-    waitDlg->close();
-    waitDlg=nullptr;
+        waitDlg->close();
+        waitDlg=nullptr;
     }
 
     if (ok)
@@ -3063,22 +3313,22 @@ void MainWindow::saveLiveData(const QVector<double> &xAdxl,
 void MainWindow::on_pushButton_saveLive_clicked()
 {
 
-        saveLive = true;
-        QMessageBox::information(this,"Save Started","Data saving is started");
-        if (!saveLimitTimer->isActive()) {
-            saveLimitTimer->start(480000);
-            qDebug() << "Timer started.";
-        } else {
-            qDebug()<< "Timer already running. Not restarting.";
-        }
+    saveLive = true;
+    QMessageBox::information(this,"Save Started","Data saving is started");
+    if (!saveLimitTimer->isActive()) {
+        saveLimitTimer->start(480000);
+        qDebug() << "Timer started.";
+    } else {
+        qDebug()<< "Timer already running. Not restarting.";
+    }
 
 
 }
 void MainWindow::on_pushButton_startLive_clicked()
 {
-     maxPeak_x = 0.0;
-     maxPeak_y = 0.0;
-     maxPeak_z = 0.0;
+    maxPeak_x = 0.0;
+    maxPeak_y = 0.0;
+    maxPeak_z = 0.0;
 
     responseTimer->start(2000);
 
@@ -3097,47 +3347,47 @@ void MainWindow::on_pushButton_startLive_clicked()
 
 void MainWindow::on_pushButton_fitToScreenLive_clicked()
 {
-        QList<QCustomPlot*> allPlots = {
-            ui->customPlot_adxl_x_live,
-            ui->customPlot_adxl_y_live,
-            ui->customPlot_adxl_z_live,
-            ui->customPlot_incl_x_live
-        };
+    QList<QCustomPlot*> allPlots = {
+        ui->customPlot_adxl_x_live,
+        ui->customPlot_adxl_y_live,
+        ui->customPlot_adxl_z_live,
+        ui->customPlot_incl_x_live
+    };
 
-        // Iterate through each and fit accordingly
-        for (QCustomPlot *plot : allPlots)
+    // Iterate through each and fit accordingly
+    for (QCustomPlot *plot : allPlots)
+    {
+        if (!plot) continue;
+
+        bool hasData = false;
+        for (int i = 0; i < plot->graphCount(); ++i)
         {
-            if (!plot) continue;
-
-            bool hasData = false;
-            for (int i = 0; i < plot->graphCount(); ++i)
+            if (plot->graph(i)->dataCount() > 0)
             {
-                if (plot->graph(i)->dataCount() > 0)
-                {
-                    hasData = true;
-                    break;
-                }
+                hasData = true;
+                break;
             }
-
-            if (hasData)
-            {
-                //  Auto-fit to existing data
-                plot->rescaleAxes(true);
-
-                // Small padding for aesthetics
-                plot->xAxis->scaleRange(1.05, plot->xAxis->range().center());
-                plot->yAxis->scaleRange(1.05, plot->yAxis->range().center());
-            }
-            else
-            {
-                //  No data — reset to initial default view
-                plot->xAxis->setRange(0, 100);
-                plot->yAxis->setRange(-5, 5);
-            }
-
-            plot->replot();
         }
 
-        qDebug() << "All plots adjusted — data-fitted if available, otherwise reset to default view.";
-        writeToNotes("All plots adjusted — data-fitted if available, otherwise reset to default view.");
+        if (hasData)
+        {
+            //  Auto-fit to existing data
+            plot->rescaleAxes(true);
+
+            // Small padding for aesthetics
+            plot->xAxis->scaleRange(1.05, plot->xAxis->range().center());
+            plot->yAxis->scaleRange(1.05, plot->yAxis->range().center());
+        }
+        else
+        {
+            //  No data — reset to initial default view
+            plot->xAxis->setRange(0, 100);
+            plot->yAxis->setRange(-5, 5);
+        }
+
+        plot->replot();
     }
+
+    qDebug() << "All plots adjusted — data-fitted if available, otherwise reset to default view.";
+    writeToNotes("All plots adjusted — data-fitted if available, otherwise reset to default view.");
+}
