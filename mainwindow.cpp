@@ -758,6 +758,15 @@ void MainWindow::makePacket4100AdxlTempList(QList<QByteArray> &rawPacket4100Adxl
     QVector<double> xAdxl, yAdxl, zAdxl;
     int globalSample = 1;
 
+    x_0 = x_1 = x_2 = 0.0;
+    x_y_0 = x_y_1 = x_y_2 = 0.0;
+
+    y_0 = y_1 = y_2 = 0.0;
+    y_y_0 = y_y_1 = y_y_2 = 0.0;
+
+    z_0 = z_1 = z_2 = 0.0;
+    z_y_0 = z_y_1 = z_y_2 = 0.0;
+
     // --- ADXL Data Processing ---
     for (int p = 0; p < rawPacket4100AdxlList.size(); ++p)
     {
@@ -839,10 +848,19 @@ void MainWindow::makePacket4100AdxlTempList(QList<QByteArray> &rawPacket4100Adxl
                         const QVector<double> &x,
                         const QVector<double> &y)
     {
-        if (plot->graphCount() > 0)
+        if(plot->graphCount() > 0)
         {
+            plot->setUpdatesEnabled(false);
+
             plot->graph(0)->setData(x, y);
-            plot->rescaleAxes();
+
+            plot->xAxis->setRange(x.first(),
+                                  x.last());
+
+            plot->graph(0)->rescaleValueAxis();
+
+            plot->setUpdatesEnabled(true);
+
             plot->replot(QCustomPlot::rpQueuedReplot);
         }
     };
@@ -852,7 +870,6 @@ void MainWindow::makePacket4100AdxlTempList(QList<QByteArray> &rawPacket4100Adxl
     xFiltered.clear();
     yFiltered.clear();
     zFiltered.clear();
-    sampleIndex.clear();
 
     for(int i = 0; i < xAdxl.size(); i++)
     {
@@ -865,8 +882,11 @@ void MainWindow::makePacket4100AdxlTempList(QList<QByteArray> &rawPacket4100Adxl
         yFiltered.append(y_y_0);
         zFiltered.append(z_y_0);
 
-        // X-axis sample number
-        sampleIndex.append(i);
+        // Give UI breathing space every 5000 samples
+        if(i % 5000 == 0)
+        {
+            QCoreApplication::processEvents();
+        }
     }
 
 
@@ -875,9 +895,13 @@ void MainWindow::makePacket4100AdxlTempList(QList<QByteArray> &rawPacket4100Adxl
               sampleIndex,
               xFiltered);
 
+    QCoreApplication::processEvents();
+
     plotGraph(ui->customPlot_adxl_y,
               sampleIndex,
               yFiltered);
+
+    QCoreApplication::processEvents();
 
     plotGraph(ui->customPlot_adxl_z,
               sampleIndex,
