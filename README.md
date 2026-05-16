@@ -46,3 +46,6 @@
 #Ver2.5 ---------------------------------------------------------------------------------------------------
 - on get events now it can handle for 1 hr data, debug_notes limited, excel saving in thread, and custom plot need to be optimized.
 
+#Ver2.6 ---------------------------------------------------------------------------------------------------
+- Had applied lpf_secondOrder() for makePacket4100AdxlTempList but for only ADXL.
+

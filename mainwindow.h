@@ -111,6 +111,8 @@ public:
     void on_pushButton_fitToScreen_fft_clicked();
     void removeDC(QVector<double> &x);
 
+    void lpf_secondOrder(double xn, double yn, double zn);
+
 private slots:
         void onPortSelected(const QString &portName);
 
@@ -298,6 +300,40 @@ private:
 
      const int MAX_EXCEL_ROWS = 1048576;
      const int DATA_START_ROW = 4;
+
+     const double b0 = 0.09763107;
+     const double b1 = 0.19526215;
+     const double b2 = 0.09763107;
+     const double a1 = -0.94280904;
+     const double a2 = 0.33333333;
+
+     double x_0 = 0.0;
+     double x_1 = 0.0;
+     double x_2 = 0.0;
+
+     double x_y_0 = 0.0;
+     double x_y_1 = 0.0;
+     double x_y_2 = 0.0;
+
+     double y_0 = 0.0;
+     double y_1 = 0.0;
+     double y_2 = 0.0;
+
+     double y_y_0 = 0.0;
+     double y_y_1 = 0.0;
+     double y_y_2 = 0.0;
+
+     double z_0 = 0.0;
+     double z_1 = 0.0;
+     double z_2 = 0.0;
+
+     double z_y_0 = 0.0;
+     double z_y_1 = 0.0;
+     double z_y_2 = 0.0;
+
+     QVector<double> xFiltered;
+     QVector<double> yFiltered;
+     QVector<double> zFiltered;
 
 
 };  

@@ -835,7 +835,9 @@ void MainWindow::makePacket4100AdxlTempList(QList<QByteArray> &rawPacket4100Adxl
     qDebug() << "Total temperature samples:" << temperatureValues.size();
 
     // --- Plotting Helper ---
-    auto plotGraph = [](QCustomPlot *plot, const QVector<double> &x, const QVector<double> &y)
+    auto plotGraph = [](QCustomPlot *plot,
+                        const QVector<double> &x,
+                        const QVector<double> &y)
     {
         if (plot->graphCount() > 0)
         {
@@ -845,22 +847,54 @@ void MainWindow::makePacket4100AdxlTempList(QList<QByteArray> &rawPacket4100Adxl
         }
     };
 
+
+    // --- Apply LPF on all samples ---
+    xFiltered.clear();
+    yFiltered.clear();
+    zFiltered.clear();
+    sampleIndex.clear();
+
+    for(int i = 0; i < xAdxl.size(); i++)
+    {
+        lpf_secondOrder(xAdxl[i],
+                        yAdxl[i],
+                        zAdxl[i]);
+
+        // Save filtered outputs
+        xFiltered.append(x_y_0);
+        yFiltered.append(y_y_0);
+        zFiltered.append(z_y_0);
+
+        // X-axis sample number
+        sampleIndex.append(i);
+    }
+
+
     // --- Plot ADXL ---
-    // QVector<double>freq=generateSineWave(500, 7.5, 2.0, 10000.0);
+    plotGraph(ui->customPlot_adxl_x,
+              sampleIndex,
+              xFiltered);
+
+    plotGraph(ui->customPlot_adxl_y,
+              sampleIndex,
+              yFiltered);
+
+    plotGraph(ui->customPlot_adxl_z,
+              sampleIndex,
+              zFiltered);
 
 
-    plotGraph(ui->customPlot_adxl_x, sampleIndex, xAdxl);
-    plotGraph(ui->customPlot_adxl_y, sampleIndex, yAdxl);
-    plotGraph(ui->customPlot_adxl_z, sampleIndex, zAdxl);
     // --- Plot Temperature ---
-    plotGraph(ui->customPlot_temperature, tempIndex, temperatureValues);
+    plotGraph(ui->customPlot_temperature,
+              tempIndex,
+              temperatureValues);
 
-    // --- Passing local values to global values
 
+    // --- Save global values ---
     this->finalAdxlIndex = sampleIndex;
-    this->finalXAdxl = xAdxl;
-    this->finalYAdxl = yAdxl;
-    this->finalZAdxl = zAdxl;
+    this->finalXAdxl = xFiltered;
+    this->finalYAdxl = yFiltered;
+    this->finalZAdxl = zFiltered;
 
     this->finalTempIndex = tempIndex;
     this->finalTemperature = temperatureValues;
@@ -2497,6 +2531,52 @@ void MainWindow::removeDC(QVector<double> &x)
     double mean = sum / x.size();
 
     for (double &v : x) v -= mean;
+}
+
+void MainWindow::lpf_secondOrder(double xn,
+                                 double yn,
+                                 double zn)
+{
+    // X Axis
+    x_y_0 = (b0 * xn) +
+            (b1 * x_1) +
+            (b2 * x_2) -
+            (a1 * x_y_1) -
+            (a2 * x_y_2);
+
+    x_2 = x_1;
+    x_1 = xn;
+
+    x_y_2 = x_y_1;
+    x_y_1 = x_y_0;
+
+
+    // Y Axis
+    y_y_0 = (b0 * yn) +
+            (b1 * y_1) +
+            (b2 * y_2) -
+            (a1 * y_y_1) -
+            (a2 * y_y_2);
+
+    y_2 = y_1;
+    y_1 = yn;
+
+    y_y_2 = y_y_1;
+    y_y_1 = y_y_0;
+
+
+    // Z Axis
+    z_y_0 = (b0 * zn) +
+            (b1 * z_1) +
+            (b2 * z_2) -
+            (a1 * z_y_1) -
+            (a2 * z_y_2);
+
+    z_2 = z_1;
+    z_1 = zn;
+
+    z_y_2 = z_y_1;
+    z_y_1 = z_y_0;
 }
 
 void MainWindow::applyHanning(QVector<double> &signal)
