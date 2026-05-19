@@ -395,6 +395,131 @@ void MainWindow::setupPlot(QCustomPlot *plot, const QString &xLabel, const QStri
 
     plot->replot();
 }
+
+MainWindow::CsvPlotData
+MainWindow::loadAdxlCsv(
+        const QString &filePath)
+{
+    CsvPlotData result;
+
+    QFile file(filePath);
+
+    if(!file.open(
+                QIODevice::ReadOnly |
+                QIODevice::Text))
+    {
+        qCritical()
+                << "Failed to open CSV:"
+                << filePath;
+
+        return result;
+    }
+
+    QTextStream in(&file);
+
+    // -----------------------------------
+    // Skip metadata row
+    // -----------------------------------
+
+    if(!in.atEnd())
+    {
+        in.readLine();
+    }
+
+    // -----------------------------------
+    // Skip empty row
+    // -----------------------------------
+
+    if(!in.atEnd())
+    {
+        in.readLine();
+    }
+
+    // -----------------------------------
+    // Skip actual header row
+    // -----------------------------------
+
+    if(!in.atEnd())
+    {
+        in.readLine();
+    }
+
+    // -----------------------------------
+    // Read actual data
+    // -----------------------------------
+
+    while(!in.atEnd())
+    {
+        QString line =
+                in.readLine()
+                .trimmed();
+
+        if(line.isEmpty())
+        {
+            continue;
+        }
+
+        QStringList values =
+                line.split(",");
+
+        if(values.size() < 4)
+        {
+            continue;
+        }
+
+        bool ok1 = false;
+        bool ok2 = false;
+        bool ok3 = false;
+        bool ok4 = false;
+
+        double sample =
+                values[0]
+                .toDouble(&ok1);
+
+        double x =
+                values[1]
+                .toDouble(&ok2);
+
+        double y =
+                values[2]
+                .toDouble(&ok3);
+
+        double z =
+                values[3]
+                .toDouble(&ok4);
+
+        // Ignore corrupted rows
+        if(!(ok1 &&
+             ok2 &&
+             ok3 &&
+             ok4))
+        {
+            continue;
+        }
+
+        result.sampleIndex
+                .append(sample);
+
+        result.xLoaded
+                .append(x);
+
+        result.yLoaded
+                .append(y);
+
+        result.zLoaded
+                .append(z);
+    }
+
+    file.close();
+
+    qDebug()
+            << "CSV Load Complete:"
+            << result.sampleIndex.size()
+            << "samples";
+
+    return result;
+}
+
 void MainWindow::setupFFTPlot(QCustomPlot *plot, const QString &xLabel)
 {
     if (!plot) return;
@@ -809,7 +934,9 @@ void MainWindow::makePacket4100AdxlTempList(QList<QByteArray> &rawPacket4100Adxl
 
         qDebug() << "Processed ADXL packet" << p << ", extracted" << usableSize / 6 << "samples";
     }
-    for(int g=0;g<xAdxl.size();g++){
+
+    for(int g=0;g<xAdxl.size();g++)
+    {
         xAdxl[g]=(xAdxl[g]-1.65)/0.0063;
         yAdxl[g]=(yAdxl[g]-1.65)/0.0063;
         zAdxl[g]=(zAdxl[g]-1.65)/0.0063;
@@ -848,21 +975,51 @@ void MainWindow::makePacket4100AdxlTempList(QList<QByteArray> &rawPacket4100Adxl
                         const QVector<double> &x,
                         const QVector<double> &y)
     {
-        if(plot->graphCount() > 0)
+        if(plot->graphCount() == 0 ||
+           x.isEmpty() ||
+           y.isEmpty())
         {
-            plot->setUpdatesEnabled(false);
-
-            plot->graph(0)->setData(x, y);
-
-            plot->xAxis->setRange(x.first(),
-                                  x.last());
-
-            plot->graph(0)->rescaleValueAxis();
-
-            plot->setUpdatesEnabled(true);
-
-            plot->replot(QCustomPlot::rpQueuedReplot);
+            return;
         }
+
+        plot->setUpdatesEnabled(false);
+
+        // Clear old graph data
+        plot->graph(0)->data()->clear();
+
+        constexpr int CHUNK_SIZE = 5000;
+
+        // Add data in chunks
+        for(int i = 0; i < x.size(); i += CHUNK_SIZE)
+        {
+            int count =
+                qMin(CHUNK_SIZE,
+                     x.size() - i);
+
+            // Add partial chunk
+            plot->graph(0)->addData(
+                x.mid(i, count),
+                y.mid(i, count));
+
+            // Give UI breathing space
+            if(i > 0 && i % 10000 == 0)
+            {
+                QCoreApplication::processEvents();
+            }
+        }
+
+        // Set axis range
+        plot->xAxis->setRange(
+            x.first(),
+            x.last());
+
+        plot->graph(0)->rescaleValueAxis();
+
+        plot->setUpdatesEnabled(true);
+
+        // Single replot at end
+        plot->replot(
+            QCustomPlot::rpQueuedReplot);
     };
 
 
@@ -889,23 +1046,38 @@ void MainWindow::makePacket4100AdxlTempList(QList<QByteArray> &rawPacket4100Adxl
         }
     }
 
+    // ------------------------------------
+    // Choose RAW or LPF data
+    // ------------------------------------
+
+    QVector<double> *xToPlot = &xAdxl;
+    QVector<double> *yToPlot = &yAdxl;
+    QVector<double> *zToPlot = &zAdxl;
+
+    if(ui->checkBox_lowPass->isChecked())
+    {
+        xToPlot = &xFiltered;
+        yToPlot = &yFiltered;
+        zToPlot = &zFiltered;
+    }
+
 
     // --- Plot ADXL ---
     plotGraph(ui->customPlot_adxl_x,
               sampleIndex,
-              xFiltered);
+              *xToPlot);
 
     QCoreApplication::processEvents();
 
     plotGraph(ui->customPlot_adxl_y,
               sampleIndex,
-              yFiltered);
+              *yToPlot);
 
     QCoreApplication::processEvents();
 
     plotGraph(ui->customPlot_adxl_z,
               sampleIndex,
-              zFiltered);
+              *zToPlot);
 
 
     // --- Plot Temperature ---
@@ -916,9 +1088,9 @@ void MainWindow::makePacket4100AdxlTempList(QList<QByteArray> &rawPacket4100Adxl
 
     // --- Save global values ---
     this->finalAdxlIndex = sampleIndex;
-    this->finalXAdxl = xFiltered;
-    this->finalYAdxl = yFiltered;
-    this->finalZAdxl = zFiltered;
+    this->finalXAdxl = *xToPlot;
+    this->finalYAdxl = *yToPlot;
+    this->finalZAdxl = *zToPlot;
 
     this->finalTempIndex = tempIndex;
     this->finalTemperature = temperatureValues;
@@ -928,7 +1100,7 @@ void MainWindow::makePacket4100AdxlTempList(QList<QByteArray> &rawPacket4100Adxl
     qDebug() << "Debug 1";
 
     try {
-        computeAndPlotFFT(xAdxl, Fs, ui->customPlot_adxl_x_FFT);
+        computeAndPlotFFT(*xToPlot, Fs, ui->customPlot_adxl_x_FFT);
     }
     catch (std::exception &ex) {
         qCritical() << "computeAndPlotFFT exception:" << ex.what();
@@ -940,10 +1112,10 @@ void MainWindow::makePacket4100AdxlTempList(QList<QByteArray> &rawPacket4100Adxl
     qDebug() << "Debug 2";
 
 
-    computeAndPlotFFT(yAdxl, Fs, ui->customPlot_adxl_y_FFT);
-    computeAndPlotFFT(zAdxl, Fs, ui->customPlot_adxl_z_FFT);
-
+    computeAndPlotFFT(*yToPlot, Fs, ui->customPlot_adxl_y_FFT);
+    computeAndPlotFFT(*zToPlot, Fs, ui->customPlot_adxl_z_FFT);
 }
+
 void MainWindow::makePacket4100InclList(QList<QByteArray> &rawPacket4100InclList)
 {
     QVector<double> sampleIndex;
@@ -1041,16 +1213,12 @@ bool MainWindow::saveAllSensorDataToExcel(
 {
     QXlsx::Document xlsx;
 
-    // =========================================================
-    // EXCEL LIMITS
-    // =========================================================
+    constexpr int MAX_ROWS = 1048576;
+    constexpr int DATA_START_ROW = 6;
 
-    const int MAX_ROWS = 1048576;
-    const int DATA_START_ROW = 6;
-
-    // =========================================================
-    // FORMATS
-    // =========================================================
+    // =====================================================
+    // HEADER FORMATS ONLY
+    // =====================================================
 
     QXlsx::Format headerFormat;
     headerFormat.setFontBold(true);
@@ -1059,47 +1227,57 @@ bool MainWindow::saveAllSensorDataToExcel(
     headerFormat.setBorderStyle(
                 QXlsx::Format::BorderThin);
 
-    QXlsx::Format headerFormat1;
-    headerFormat1.setFontBold(true);
-    headerFormat1.setHorizontalAlignment(
+    QXlsx::Format titleFormat;
+    titleFormat.setFontBold(true);
+    titleFormat.setFontSize(16);
+    titleFormat.setHorizontalAlignment(
                 QXlsx::Format::AlignHCenter);
-    headerFormat1.setBorderStyle(
-                QXlsx::Format::BorderThin);
-    headerFormat1.setFontSize(16);
-
-    QXlsx::Format dataFormat;
-    dataFormat.setBorderStyle(
-                QXlsx::Format::BorderThin);
-
-    // =========================================================
-    // SHEET CREATION HELPER
-    // =========================================================
 
     int sheetNumber = 1;
 
     auto setupCommonHeaders =
             [&]()
     {
-        // TABLE HEADERS
+        xlsx.write("A5",
+                   "Samples",
+                   headerFormat);
 
-        xlsx.write("A5", "Samples", headerFormat);
-        xlsx.write("B5", "ADXL X (g)", headerFormat);
-        xlsx.write("C5", "ADXL Y (g)", headerFormat);
-        xlsx.write("D5", "ADXL Z (g)", headerFormat);
+        xlsx.write("B5",
+                   "ADXL X (g)",
+                   headerFormat);
 
-        xlsx.write("F5", "Temp Index", headerFormat);
-        xlsx.write("G5", "Temperature (°C)", headerFormat);
+        xlsx.write("C5",
+                   "ADXL Y (g)",
+                   headerFormat);
 
-        xlsx.write("I5", "Incl Index", headerFormat);
-        xlsx.write("J5", "Incl X (deg)", headerFormat);
-        xlsx.write("K5", "Incl Y (deg)", headerFormat);
+        xlsx.write("D5",
+                   "ADXL Z (g)",
+                   headerFormat);
 
-        // COLUMN WIDTHS
+        xlsx.write("F5",
+                   "Temp Index",
+                   headerFormat);
 
-        xlsx.setColumnWidth(1, 1, 12);
-        xlsx.setColumnWidth(2, 4, 16);
-        xlsx.setColumnWidth(6, 7, 16);
-        xlsx.setColumnWidth(9, 11, 16);
+        xlsx.write("G5",
+                   "Temperature (°C)",
+                   headerFormat);
+
+        xlsx.write("I5",
+                   "Incl Index",
+                   headerFormat);
+
+        xlsx.write("J5",
+                   "Incl X (deg)",
+                   headerFormat);
+
+        xlsx.write("K5",
+                   "Incl Y (deg)",
+                   headerFormat);
+
+        xlsx.setColumnWidth(1,1,12);
+        xlsx.setColumnWidth(2,4,16);
+        xlsx.setColumnWidth(6,7,16);
+        xlsx.setColumnWidth(9,11,16);
     };
 
     auto createNewSheet =
@@ -1111,177 +1289,169 @@ bool MainWindow::saveAllSensorDataToExcel(
 
         if(firstSheet)
         {
-            xlsx.renameSheet("Sheet1",
-                             sheetName);
+            xlsx.renameSheet(
+                        "Sheet1",
+                        sheetName);
         }
         else
         {
-            xlsx.addSheet(sheetName);
+            xlsx.addSheet(
+                        sheetName);
         }
 
-        xlsx.selectSheet(sheetName);
-
-        // =====================================================
-        // SUMMARY ONLY FOR FIRST SHEET
-        // =====================================================
+        xlsx.selectSheet(
+                    sheetName);
 
         if(firstSheet)
         {
-            xlsx.mergeCells("A1:B1");
+            xlsx.mergeCells(
+                        "A1:B1");
 
-            xlsx.write("A1",
-                       "Raw Sensor Data",
-                       headerFormat1);
+            xlsx.write(
+                        "A1",
+                        "Raw Sensor Data",
+                        titleFormat);
 
-            xlsx.write("A2",
-                       "Event ID",
-                       headerFormat);
+            xlsx.write(
+                        "A2",
+                        "Event ID",
+                        headerFormat);
 
-            xlsx.write("B2",
-                       eventId);
+            xlsx.write(
+                        "B2",
+                        eventId);
 
-            xlsx.write("D2",
-                       "StartTime",
-                       headerFormat);
+            xlsx.write(
+                        "D2",
+                        "StartTime",
+                        headerFormat);
 
-            xlsx.write("E2",
-                       formattedStart);
+            xlsx.write(
+                        "E2",
+                        formattedStart);
 
-            xlsx.write("G2",
-                       "EndTime",
-                       headerFormat);
+            xlsx.write(
+                        "G2",
+                        "EndTime",
+                        headerFormat);
 
-            xlsx.write("H2",
-                       formattedEnd);
+            xlsx.write(
+                        "H2",
+                        formattedEnd);
 
-            xlsx.write("A3",
-                       "ADXL freq",
-                       headerFormat);
+            xlsx.write(
+                        "A3",
+                        "ADXL freq",
+                        headerFormat);
 
-            xlsx.write("B3",
-                       adxlFreq);
+            xlsx.write(
+                        "B3",
+                        adxlFreq);
 
-            xlsx.write("D3",
-                       "Inclinometer freq",
-                       headerFormat);
+            xlsx.write(
+                        "D3",
+                        "Inclinometer freq",
+                        headerFormat);
 
-            xlsx.write("E3",
-                       InclinometerFreq);
+            xlsx.write(
+                        "E3",
+                        InclinometerFreq);
         }
 
-        // COMMON TABLE HEADERS
         setupCommonHeaders();
     };
 
-    // =========================================================
+    // =====================================================
     // CREATE FIRST SHEET
-    // =========================================================
+    // =====================================================
 
     createNewSheet(true);
 
     int row = DATA_START_ROW;
 
-    // =========================================================
-    // FIND MAXIMUM DATA SIZE
-    // =========================================================
+    // Cache sizes once
+    const int adxlSize =
+            xAdxl.size();
 
-    int maxSize = qMax(
-                qMax(xAdxl.size(),
-                     temperature.size()),
-                inclX.size());
+    const int tempSize =
+            temperature.size();
 
-    // =========================================================
-    // WRITE DATA
-    // =========================================================
+    const int inclSize =
+            inclX.size();
 
-    for(int i = 0; i < maxSize; i++)
+    const int maxSize =
+            qMax(qMax(adxlSize,
+                      tempSize),
+                 inclSize);
+
+    // =====================================================
+    // WRITE DATA (FAST VERSION)
+    // =====================================================
+
+    for(int i = 0;
+        i < maxSize;
+        ++i)
     {
-        // =====================================================
-        // CREATE NEW SHEET IF LIMIT REACHED
-        // =====================================================
-
         if(row > MAX_ROWS)
         {
             createNewSheet(false);
-
             row = DATA_START_ROW;
         }
 
-        // =====================================================
-        // ADXL DATA
-        // =====================================================
-
-        if(i < xAdxl.size())
+        // ---------------- ADXL ----------------
+        if(i < adxlSize)
         {
-            xlsx.write(row,
-                       1,
-                       adxlIndex[i],
-                       dataFormat);
+            xlsx.write(
+                        row,1,
+                        adxlIndex[i]);
 
-            xlsx.write(row,
-                       2,
-                       xAdxl[i],
-                       dataFormat);
+            xlsx.write(
+                        row,2,
+                        xAdxl[i]);
 
-            xlsx.write(row,
-                       3,
-                       yAdxl[i],
-                       dataFormat);
+            xlsx.write(
+                        row,3,
+                        yAdxl[i]);
 
-            xlsx.write(row,
-                       4,
-                       zAdxl[i],
-                       dataFormat);
+            xlsx.write(
+                        row,4,
+                        zAdxl[i]);
         }
 
-        // =====================================================
-        // TEMPERATURE DATA
-        // =====================================================
-
-        if(i < temperature.size())
+        // ---------------- TEMP ----------------
+        if(i < tempSize)
         {
-            xlsx.write(row,
-                       6,
-                       tempIndex[i],
-                       dataFormat);
+            xlsx.write(
+                        row,6,
+                        tempIndex[i]);
 
-            xlsx.write(row,
-                       7,
-                       temperature[i],
-                       dataFormat);
+            xlsx.write(
+                        row,7,
+                        temperature[i]);
         }
 
-        // =====================================================
-        // INCLINOMETER DATA
-        // =====================================================
-
-        if(i < inclX.size())
+        // ------------- INCL ------------------
+        if(i < inclSize)
         {
-            xlsx.write(row,
-                       9,
-                       inclIndex[i],
-                       dataFormat);
+            xlsx.write(
+                        row,9,
+                        inclIndex[i]);
 
-            xlsx.write(row,
-                       10,
-                       inclX[i],
-                       dataFormat);
+            xlsx.write(
+                        row,10,
+                        inclX[i]);
 
-            xlsx.write(row,
-                       11,
-                       inclY[i],
-                       dataFormat);
+            xlsx.write(
+                        row,11,
+                        inclY[i]);
         }
 
-        row++;
+        ++row;
     }
-
-    // =========================================================
-    // SAVE FILE
-    // =========================================================
 
     return xlsx.saveAs(fullPath);
 }
+
 void MainWindow::initializeSensorVectors()
 {
     // --- ADXL ---
@@ -1527,90 +1697,106 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
         makePacket4100AdxlTempList(packet4100AdxlList,packetTemperatureList);
         makePacket4100InclList(packet4100InclList);
 
-        if (dlgPlot) {
-            dlgPlot->close();
-            dlgPlot = nullptr;
-        }
+        // NEW CODE : 18May2026 --------------------------------- BEGIN
 
-        // NEW CODE : 8May2026 --------------------------------- BEGIN
+        // Save ADXL CSV
+        startAdxlCsvSaving(
+                    [=]()
+        {
+            // This runs ONLY after CSV completes
 
-        QString defaultName =
-                QString("SensorData_%1.xlsx")
-                .arg(QDateTime::currentDateTime()
-                     .toString("yyyyMMdd_HHmmss"));
+            blinkLabel(ui->label_csv,300,"CSV OFF");
 
-        QString desktopPath =
-                QStandardPaths::writableLocation(
-                    QStandardPaths::DesktopLocation);
+            if(dlgPlot)
+            {
+                dlgPlot->close();
+                dlgPlot = nullptr;
+            }
 
-        QString fullPath =
-                QFileDialog::getSaveFileName(
+            // ---------------------------------
+            // Excel code continues here
+            // ---------------------------------
+
+            QString defaultName =
+                    QString("SensorData_%1")
+                    .arg(QDateTime::currentDateTime()
+                         .toString("yyyyMMdd_HHmmss"));
+
+            QString desktopPath =
+                    QStandardPaths::writableLocation(
+                        QStandardPaths::DesktopLocation);
+
+            QString fullPath =
+                    QFileDialog::getSaveFileName(
+                        this,
+                        "Save Sensor Data",
+                        desktopPath + "/" + defaultName,
+                        "Excel Files (*.xlsx)");
+
+            if(fullPath.isEmpty())
+            {
+                return;
+            }
+
+            QDialog *excelSavingDialog =
+                    createPleaseWaitDialog(
+                        "⏳ Please Wait, Data Saving ...");
+
+            QFutureWatcher<bool> *watcher =
+                    new QFutureWatcher<bool>(
+                        this);
+
+            connect(watcher,
+                    &QFutureWatcher<bool>::finished,
                     this,
-                    "Save Sensor Data",
-                    desktopPath + "/" + defaultName,
-                    "Excel Files (*.xlsx)");
-
-        if(fullPath.isEmpty())
-        {
-            return;
-        }
-
-        QDialog *excelSavingDialog =
-                createPleaseWaitDialog(
-                    "⏳ Please Wait, Data Saving ..."
-                );
-
-        QFutureWatcher<bool> *watcher =
-                new QFutureWatcher<bool>(this);
-
-        connect(watcher,
-                &QFutureWatcher<bool>::finished,
-                this,
-                [=]()
-        {
-            bool ok = watcher->result();
-
-            if(excelSavingDialog)
+                    [=]()
             {
-                excelSavingDialog->close();
-                excelSavingDialog->deleteLater();
-            }
+                bool ok =
+                        watcher->result();
 
-            watcher->deleteLater();
+                if(excelSavingDialog)
+                {
+                    excelSavingDialog->close();
+                    excelSavingDialog->deleteLater();
+                }
 
-            if(ok)
+                watcher->deleteLater();
+
+                if(ok)
+                {
+                    QMessageBox::information(
+                                this,
+                                "Success",
+                                "Excel data saved successfully.");
+                }
+                else
+                {
+                    QMessageBox::critical(
+                                this,
+                                "Error",
+                                "Failed to save excel file.");
+                }
+            });
+
+            watcher->setFuture(
+                        QtConcurrent::run(
+                            [=]()
             {
-                QMessageBox::information(
-                            this,
-                            "Success",
-                            "Excel data saved successfully.");
-            }
-            else
-            {
-                QMessageBox::critical(
-                            this,
-                            "Error",
-                            "Failed to save excel file.");
-            }
+                return saveAllSensorDataToExcel(
+                            finalAdxlIndex,
+                            finalXAdxl,
+                            finalYAdxl,
+                            finalZAdxl,
+                            finalTempIndex,
+                            finalTemperature,
+                            finalInclIndex,
+                            finalInclX,
+                            finalInclY,
+                            fullPath);
+            }));
         });
 
-        watcher->setFuture(
-                    QtConcurrent::run([=]()
-        {
-            return saveAllSensorDataToExcel(
-                        finalAdxlIndex,
-                        finalXAdxl,
-                        finalYAdxl,
-                        finalZAdxl,
-                        finalTempIndex,
-                        finalTemperature,
-                        finalInclIndex,
-                        finalInclX,
-                        finalInclY,
-                        fullPath);
-        }));
-
-        // NEW CODE : 8May2026 --------------------------------- END
+        // NEW CODE : 18May2026 --------------------------------- END
 
 
     }
@@ -2603,6 +2789,216 @@ void MainWindow::lpf_secondOrder(double xn,
     z_y_1 = z_y_0;
 }
 
+void MainWindow::blinkLabel(QLabel *label,
+                            int durationMs,
+                            const QString &text)
+{
+    if (!label)
+        return;
+
+    // Create timer if not exists for this label
+    if (!blinkTimers.contains(label)) {
+        QTimer *timer = new QTimer(this);
+        timer->setSingleShot(true);
+
+        connect(timer, &QTimer::timeout, this, [=]() {
+            label->setStyleSheet("");
+            label->setText("Status");
+        });
+
+        blinkTimers[label] = timer;
+    }
+
+    QTimer *timer = blinkTimers[label];
+
+    // 🔥 KEY: cancel previous pending reset
+    timer->stop();
+
+    // Update UI immediately
+    label->setText(text);
+
+    label->setStyleSheet("background-color: yellow;");
+
+    // Start fresh timer
+    timer->start(durationMs);
+}
+
+QString MainWindow::createAdxlCsvPath()
+{
+    QString desktopPath =
+            QStandardPaths::writableLocation(
+                QStandardPaths::DesktopLocation);
+
+    QString folderPath =
+            desktopPath
+            + "/ADXL_CSV";
+
+    QDir dir;
+
+    // Create folder if missing
+    if(!dir.exists(folderPath))
+    {
+        dir.mkpath(folderPath);
+
+        qDebug()
+                << "Created folder:"
+                << folderPath;
+    }
+
+    QString timestamp =
+            QDateTime::currentDateTime()
+            .toString(
+                "yyyyMMdd_HHmmss");
+
+    return folderPath
+            + "/ADXL_Data_"
+            + timestamp
+            + ".csv";
+}
+
+void MainWindow::startAdxlCsvSaving(
+        std::function<void()> onFinished)
+{
+    QString csvPath =
+            createAdxlCsvPath();
+
+    qDebug()
+            << "Saving ADXL CSV:"
+            << csvPath;
+
+    QFutureWatcher<bool> *watcher =
+            new QFutureWatcher<bool>(
+                this);
+
+    connect(watcher,
+            &QFutureWatcher<bool>::finished,
+            this,
+            [=]()
+    {
+        bool ok =
+                watcher->result();
+
+        qDebug()
+                << "CSV Save Finished:"
+                << ok;
+
+        watcher->deleteLater();
+
+        // Continue flow
+        if(onFinished)
+        {
+            onFinished();
+        }
+    });
+
+    watcher->setFuture(
+                QtConcurrent::run(
+                    [=]()
+    {
+        return saveAdxlToCsv(
+                    finalAdxlIndex,
+                    finalXAdxl,
+                    finalYAdxl,
+                    finalZAdxl,
+                    csvPath);
+    }));
+}
+
+bool MainWindow::saveAdxlToCsv(
+        const QVector<double> &sampleIndex,
+        const QVector<double> &xAdxl,
+        const QVector<double> &yAdxl,
+        const QVector<double> &zAdxl,
+        const QString &filePath)
+{
+    QFile file(filePath);
+
+    if(!file.open(
+                QIODevice::WriteOnly |
+                QIODevice::Text))
+    {
+        qCritical()
+                << "Failed to create CSV:"
+                << filePath;
+
+        return false;
+    }
+
+    QTextStream out(&file);
+
+    out.setRealNumberNotation(
+                QTextStream::FixedNotation);
+
+    out.setRealNumberPrecision(6);
+
+    // -----------------------------------
+    // Row 1 : Metadata
+    // -----------------------------------
+
+    out
+    << "Event ID,"
+    << eventId
+    << ",Start Time,"
+    << formattedStart
+    << ",End Time,"
+    << formattedEnd
+    << "\n";
+
+    // Empty row for readability
+    out << "\n";
+
+    // -----------------------------------
+    // Row 3 : Header
+    // -----------------------------------
+
+    out
+    << "Sample Number,"
+       "ADXL X (g),"
+       "ADXL Y (g),"
+       "ADXL Z (g)\n";
+
+    const int size =
+            xAdxl.size();
+
+    // -----------------------------------
+    // Data
+    // -----------------------------------
+
+    for(int i = 0;
+        i < size;
+        ++i)
+    {
+        out
+        << sampleIndex[i] << ","
+        << xAdxl[i] << ","
+        << yAdxl[i] << ","
+        << zAdxl[i]
+        << "\n";
+
+        // Flush periodically
+        if(i > 0 &&
+           i % 100000 == 0)
+        {
+            out.flush();
+
+            ui->label_csv->setText(
+                        QString(
+                            "Rows : %1")
+                        .arg(i));
+        }
+    }
+
+    out.flush();
+    file.flush();
+    file.close();
+
+    qDebug()
+            << "CSV save completed:"
+            << filePath;
+
+    return true;
+}
+
 void MainWindow::applyHanning(QVector<double> &signal)
 {
     const int N = signal.size();
@@ -3494,4 +3890,142 @@ void MainWindow::on_pushButton_fitToScreenLive_clicked()
 
     qDebug() << "All plots adjusted — data-fitted if available, otherwise reset to default view.";
     writeToNotes("All plots adjusted — data-fitted if available, otherwise reset to default view.");
+}
+
+void MainWindow::on_pushButton_openFiles_clicked()
+{
+    QString desktopPath =
+            QStandardPaths::writableLocation(
+                QStandardPaths::DesktopLocation);
+
+    QString folderPath =
+            desktopPath
+            + "/ADXL_CSV";
+
+    QString filePath =
+            QFileDialog::getOpenFileName(
+                this,
+                "Open ADXL CSV File",
+                folderPath,
+                "CSV Files (*.csv)");
+
+    if(filePath.isEmpty())
+    {
+        return;
+    }
+
+    // -------------------------------
+    // Loading dialog
+    // -------------------------------
+
+    QDialog *loadingDialog =
+            createPleaseWaitDialog(
+                "⏳ Loading CSV File...");
+
+    QFutureWatcher<CsvPlotData>
+            *watcher =
+            new QFutureWatcher<
+            CsvPlotData>(this);
+
+    connect(watcher,
+            &QFutureWatcher<
+            CsvPlotData>::finished,
+            this,
+            [=]()
+    {
+        CsvPlotData data =
+                watcher->result();
+
+        watcher->deleteLater();
+
+        // -------------------------------
+        // Plot helper
+        // -------------------------------
+
+        auto plotGraph =
+                [](QCustomPlot *plot,
+                   const QVector<double> &x,
+                   const QVector<double> &y)
+        {
+            if(plot->graphCount() == 0 ||
+               x.isEmpty() ||
+               y.isEmpty())
+            {
+                return;
+            }
+
+            plot->setUpdatesEnabled(false);
+
+            plot->graph(0)
+                    ->data()
+                    ->clear();
+
+            constexpr int CHUNK_SIZE = 5000;
+
+            for(int i = 0;
+                i < x.size();
+                i += CHUNK_SIZE)
+            {
+                int count =
+                        qMin(CHUNK_SIZE,
+                             x.size() - i);
+
+                plot->graph(0)->addData(
+                            x.mid(i, count),
+                            y.mid(i, count));
+            }
+
+            plot->xAxis->setRange(
+                        x.first(),
+                        x.last());
+
+            plot->graph(0)
+                    ->rescaleValueAxis();
+
+            plot->setUpdatesEnabled(true);
+
+            plot->replot(
+                        QCustomPlot::
+                        rpQueuedReplot);
+        };
+
+        // -------------------------------
+        // Plot graphs
+        // -------------------------------
+
+        plotGraph(
+                    ui->customPlot_adxl_x,
+                    data.sampleIndex,
+                    data.xLoaded);
+
+        plotGraph(
+                    ui->customPlot_adxl_y,
+                    data.sampleIndex,
+                    data.yLoaded);
+
+        plotGraph(
+                    ui->customPlot_adxl_z,
+                    data.sampleIndex,
+                    data.zLoaded);
+
+        if(loadingDialog)
+        {
+            loadingDialog->close();
+            loadingDialog
+                    ->deleteLater();
+        }
+
+        QMessageBox::information(
+                    this,
+                    "Success",
+                    "CSV loaded successfully.");
+    });
+
+    watcher->setFuture(
+                QtConcurrent::run(
+                    [=]()
+    {
+        return loadAdxlCsv(
+                    filePath);
+    }));
 }

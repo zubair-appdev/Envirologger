@@ -33,10 +33,13 @@
 #include <windows.h>
 #include <psapi.h>
 
+#include <functional>
+
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
+
 
 // Forward declaration of serialPortHandler
 class serialPortHandler;
@@ -112,6 +115,23 @@ public:
     void removeDC(QVector<double> &x);
 
     void lpf_secondOrder(double xn, double yn, double zn);
+
+    void blinkLabel(QLabel *label,
+                    int durationMs,
+                    const QString &text);
+    // CSV Dumping
+    QString createAdxlCsvPath();
+
+    void startAdxlCsvSaving(
+            std::function<void()> onFinished);
+
+    bool saveAdxlToCsv(
+            const QVector<double> &sampleIndex,
+            const QVector<double> &xAdxl,
+            const QVector<double> &yAdxl,
+            const QVector<double> &zAdxl,
+            const QString &filePath);
+
 
 private slots:
         void onPortSelected(const QString &portName);
@@ -207,6 +227,8 @@ private slots:
 
        void on_pushButton_fitToScreenLive_clicked();
 
+       void on_pushButton_openFiles_clicked();
+
 signals:
     void sendMsgId(quint8 id);
     void memoryWarning();
@@ -220,6 +242,10 @@ private:
     QList<QCPItemTracer*> fftTracers;
     QList<QCPItemText*>   fftLabels;
     QTimer *saveLimitTimer;
+
+
+    //blinkLabel timers
+    QHash<QLabel*, QTimer*> blinkTimers;
 
 
     //Log handling
@@ -335,6 +361,16 @@ private:
      QVector<double> yFiltered;
      QVector<double> zFiltered;
 
+     // CSV load files
+     struct CsvPlotData
+     {
+         QVector<double> sampleIndex;
+         QVector<double> xLoaded;
+         QVector<double> yLoaded;
+         QVector<double> zLoaded;
+     };
 
+     CsvPlotData loadAdxlCsv(
+             const QString &filePath);
 };  
 #endif // MAINWINDOW_H

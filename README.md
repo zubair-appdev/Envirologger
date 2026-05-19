@@ -49,5 +49,8 @@
 #Ver 2.6 ---------------------------------------------------------------------------------------------------
 - Had applied lpf_secondOrder() for makePacket4100AdxlTempList but for only ADXL.
 
-#Ver 2.7
+#Ver 2.7 ---------------------------------------------------------------------------------------------------
 - Give some breathing to ui while plotting huge data, and reset lpf values properly now.
+
+#Ver 2.8 ----------------------------------------------------------------------------------------------------
+- Added CSV dump (much faster than excel writes), open files button to re-fetch data.
