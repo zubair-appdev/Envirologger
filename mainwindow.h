@@ -21,6 +21,8 @@
 #include <QScreen>
 #include <QInputDialog>
 
+#include <QScrollArea>
+
 #include <enlargeplot.h>
 #include "xlsxdocument.h"   // QXlsx header
 
@@ -77,6 +79,8 @@ public:
         loop.exec();  // Start the event loop and wait for it to quit
         QApplication::processEvents();  // Keep UI healthy
     }
+
+    void applyScrollArea();
 
     void initializeAllPlots();
 

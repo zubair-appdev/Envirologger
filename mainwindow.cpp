@@ -68,6 +68,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(serialObj,&serialPortHandler::liveData,this,&MainWindow::dataProcessing);
 
+    applyScrollArea();
+
     connect(ui->pushButton_fitToScreen_fft,&QPushButton::clicked,
             this,
             &MainWindow::on_pushButton_fitToScreen_fft_clicked);
@@ -347,6 +349,20 @@ QDialog* MainWindow::createPleaseWaitDialog(const QString &text, int timeSeconds
 
     return dlg;
 }
+
+void MainWindow::applyScrollArea()
+{
+    //In scroll area
+    // Only retrieve and embed the central widget in a scroll area
+    QWidget *existingCentralWidget = takeCentralWidget(); // Take the existing central widget
+    QScrollArea *scrollArea = new QScrollArea(this);
+    scrollArea->setWidget(existingCentralWidget);         // Embed it in the scroll area
+    scrollArea->setWidgetResizable(true);                 // Allow resizing within the scroll area
+
+    // Set the scroll area as the new central widget
+    setCentralWidget(scrollArea);
+}
+
 void MainWindow::setupPlot(QCustomPlot *plot, const QString &xLabel, const QString &yLabel,bool noClearGraph)
 {
     if(noClearGraph==true)

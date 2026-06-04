@@ -54,3 +54,6 @@
 
 #Ver 2.8 ----------------------------------------------------------------------------------------------------
 - Added CSV dump (much faster than excel writes), open files button to re-fetch data.
+
+#Ver 2.9 -----------------------------------------------------------------------------------------------------
+- Added applyScrollArea()  and fixed calibrate screen button.
