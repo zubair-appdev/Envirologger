@@ -1204,6 +1204,18 @@
                     <property name="styleSheet">
                      <string notr="true"/>
                     </property>
+                    <property name="suffix">
+                     <string> Sec</string>
+                    </property>
+                    <property name="prefix">
+                     <string/>
+                    </property>
+                    <property name="minimum">
+                     <number>1</number>
+                    </property>
+                    <property name="maximum">
+                     <number>65535</number>
+                    </property>
                    </widget>
                   </item>
                  </layout>

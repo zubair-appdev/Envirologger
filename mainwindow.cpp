@@ -20,7 +20,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->spinBox_samplingfrequency->setRange(INT_MIN, INT_MAX);
     ui->spinBox_Inclinometer->setRange(INT_MIN, INT_MAX);
 
-    ui->spinBox_logTime->setToolTip("Enter value from 1 to 10");
+    ui->spinBox_logTime->setToolTip("Enter value from 1 to 65535");
     ui->spinBox_threshold->setToolTip("Enter value from -200 to +200");
     ui->spinBox_samplingfrequency->setToolTip("Enter value from 1 to 20000");
     ui->spinBox_Inclinometer->setToolTip("Enter value from 1 to 1000");
@@ -39,8 +39,6 @@ MainWindow::MainWindow(QWidget *parent)
         QMessageBox::information(this,"Limitation reached",
                                  "Data saving is stopped due to memory limitation");
     });
-
-    ui->pushButton_startLog->hide();
 
 
     livePlotEnabled = ui->checkBox_livePlot->isChecked();
@@ -2585,20 +2583,21 @@ void MainWindow::on_pushButton_clearPoints_fft_clicked()
 void MainWindow::on_pushButton_logTime_clicked()
 {
     responseTimer->start(2000);
-    if(ui->spinBox_logTime->value()>10||ui->spinBox_logTime->value()<1){
-        QMessageBox::information(this,"out of Range","Enter the value between 1 and 10");
+    if(ui->spinBox_logTime->value()>65535||ui->spinBox_logTime->value()<1){
+        QMessageBox::information(this,"out of Range","Enter the value between 1 and 65535");
         return;
     }
-    QByteArray logTime = QByteArray::fromHex("535444");
+    QByteArray logTime = QByteArray::fromHex("53 54 44");
 
-    quint8 value = ui->spinBox_logTime->value();
-    logTime.append(static_cast<char>(value));      // append value (1 byte)
+    quint16 value = ui->spinBox_logTime->value();
+
+    logTime.append(value & 0xFF); //LSB
+    logTime.append( (value >> 8) & 0xFF); //MSB
+
     logTime.append(static_cast<char>(0xFF));
 
     emit sendMsgId(0x10);
     serialObj->writeData(logTime);
-
-
 }
 
 void MainWindow::on_pushButton_setthreshold_clicked()

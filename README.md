@@ -56,4 +56,7 @@
 - Added CSV dump (much faster than excel writes), open files button to re-fetch data.
 
 #Ver 2.9 -----------------------------------------------------------------------------------------------------
-- Added applyScrollArea()  and fixed calibrate screen button.
+- Added applyScrollArea()  and fixed calibrate screen button. [Nagendra's version]
+
+#Ver 3.0 ----------------------------------------------------------------------------------------------------
+- Now from here, 2 Adxl project started.
