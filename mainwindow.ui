@@ -461,17 +461,27 @@
              </item>
              <item>
               <property name="text">
+               <string>ADXL_X2</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>ADXL_Y2</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>ADXL_Z2</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
                <string>Temperature</string>
               </property>
              </item>
              <item>
               <property name="text">
-               <string>Inclinometer_X</string>
-              </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>Inclinometer_Y</string>
+               <string>Pressure</string>
               </property>
              </item>
             </widget>
@@ -572,7 +582,7 @@
             </widget>
            </item>
            <item row="0" column="1">
-            <widget class="QCustomPlot" name="customPlot_temperature" native="true">
+            <widget class="QCustomPlot" name="customPlot_adxl_x2" native="true">
              <property name="sizePolicy">
               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                <horstretch>0</horstretch>
@@ -592,7 +602,7 @@
             </widget>
            </item>
            <item row="1" column="1">
-            <widget class="QCustomPlot" name="customPlot_inclinometer_x" native="true">
+            <widget class="QCustomPlot" name="customPlot_adxl_y2" native="true">
              <property name="sizePolicy">
               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                <horstretch>0</horstretch>
@@ -612,7 +622,27 @@
             </widget>
            </item>
            <item row="2" column="1">
-            <widget class="QCustomPlot" name="customPlot_inclinometer_y" native="true">
+            <widget class="QCustomPlot" name="customPlot_adxl_z2" native="true">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0">
+            <widget class="QCustomPlot" name="customPlot_new_Temp" native="true">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="1">
+            <widget class="QCustomPlot" name="customPlot_new_Pressure" native="true">
              <property name="sizePolicy">
               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                <horstretch>0</horstretch>

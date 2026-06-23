@@ -141,16 +141,17 @@ void serialPortHandler::readData()
     quint8 powerId = 0x00;
 
 
-   // qDebug()<<buffer.toHex()<<" data Received";
+
     if(msgId == 0x01)
     {
         qDebug()<<buffer.size()<<" :size";
     }
     else
     {
-      //  qDebug()<<buffer.toHex()<<" Raw buffer data";
         qDebug()<<buffer.size()<<" :size";
+        qDebug()<<buffer.toHex()<<" Raw buffer data";
     }
+
 
 
     if(msgId == 0x01)

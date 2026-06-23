@@ -431,42 +431,28 @@ MainWindow::loadAdxlCsv(
 
     QTextStream in(&file);
 
-    // -----------------------------------
-    // Skip metadata row
-    // -----------------------------------
-
+    // Metadata row
     if(!in.atEnd())
     {
         in.readLine();
     }
 
-    // -----------------------------------
-    // Skip empty row
-    // -----------------------------------
-
+    // Empty row
     if(!in.atEnd())
     {
         in.readLine();
     }
 
-    // -----------------------------------
-    // Skip actual header row
-    // -----------------------------------
-
+    // Header row
     if(!in.atEnd())
     {
         in.readLine();
     }
-
-    // -----------------------------------
-    // Read actual data
-    // -----------------------------------
 
     while(!in.atEnd())
     {
         QString line =
-                in.readLine()
-                .trimmed();
+                in.readLine().trimmed();
 
         if(line.isEmpty())
         {
@@ -476,60 +462,123 @@ MainWindow::loadAdxlCsv(
         QStringList values =
                 line.split(",");
 
-        if(values.size() < 4)
+        if(values.size() < 9)
         {
             continue;
         }
 
-        bool ok1 = false;
-        bool ok2 = false;
-        bool ok3 = false;
-        bool ok4 = false;
+        bool okSample = false;
+        bool okX1 = false;
+        bool okY1 = false;
+        bool okZ1 = false;
+        bool okX2 = false;
+        bool okY2 = false;
+        bool okZ2 = false;
 
         double sample =
-                values[0]
-                .toDouble(&ok1);
+                values[0].toDouble(&okSample);
 
-        double x =
-                values[1]
-                .toDouble(&ok2);
+        double x1 =
+                values[1].toDouble(&okX1);
 
-        double y =
-                values[2]
-                .toDouble(&ok3);
+        double y1 =
+                values[2].toDouble(&okY1);
 
-        double z =
-                values[3]
-                .toDouble(&ok4);
+        double z1 =
+                values[3].toDouble(&okZ1);
 
-        // Ignore corrupted rows
-        if(!(ok1 &&
-             ok2 &&
-             ok3 &&
-             ok4))
+        double x2 =
+                values[4].toDouble(&okX2);
+
+        double y2 =
+                values[5].toDouble(&okY2);
+
+        double z2 =
+                values[6].toDouble(&okZ2);
+
+        if(!(okSample &&
+             okX1 &&
+             okY1 &&
+             okZ1 &&
+             okX2 &&
+             okY2 &&
+             okZ2))
         {
             continue;
         }
 
-        result.sampleIndex
-                .append(sample);
+        result.sampleIndex.append(sample);
 
-        result.xLoaded
-                .append(x);
+        result.x1Loaded.append(x1);
+        result.y1Loaded.append(y1);
+        result.z1Loaded.append(z1);
 
-        result.yLoaded
-                .append(y);
+        result.x2Loaded.append(x2);
+        result.y2Loaded.append(y2);
+        result.z2Loaded.append(z2);
 
-        result.zLoaded
-                .append(z);
+        //------------------------------------------------
+        // Temperature
+        //------------------------------------------------
+
+        if(values.size() > 7 &&
+           !values[7].trimmed().isEmpty())
+        {
+            bool okTemp = false;
+
+            double temp =
+                    values[7].toDouble(&okTemp);
+
+            if(okTemp)
+            {
+                result.tempLoaded.append(temp);
+            }
+        }
+
+        //------------------------------------------------
+        // Pressure
+        //------------------------------------------------
+
+        if(values.size() > 8 &&
+           !values[8].trimmed().isEmpty())
+        {
+            bool okPressure = false;
+
+            double pressure =
+                    values[8].toDouble(&okPressure);
+
+            if(okPressure)
+            {
+                result.pressureLoaded.append(
+                            pressure);
+            }
+        }
     }
 
     file.close();
 
     qDebug()
-            << "CSV Load Complete:"
-            << result.sampleIndex.size()
-            << "samples";
+            << "CSV Load Complete";
+
+    qDebug()
+            << "Samples:"
+            << result.sampleIndex.size();
+
+    qDebug()
+            << "X1:"
+            << result.x1Loaded.size();
+
+    qDebug()
+            << "X2:"
+            << result.x2Loaded.size();
+
+    qDebug()
+            << "Temp:"
+            << result.tempLoaded.size();
+
+    qDebug()
+            << "Pressure:"
+            << result.pressureLoaded.size();
 
     return result;
 }
@@ -623,55 +672,153 @@ void MainWindow::setupFFTPlot(QCustomPlot *plot, const QString &xLabel)
 
 void MainWindow::initializeAllPlots()
 {
-    // Common setup lambda
+    // ============================================================
+    // COLORS
+    // ============================================================
 
-
-    //  Graph color themes — tuned for neon-green background
-    QColor adxlColors[] = {
-        QColor(255, 60, 60),    // ADXL X - Bright Red
-        QColor(255, 180, 0),    // ADXL Y - Deep Amber
-        QColor(120, 180, 255)   // ADXL Z - Soft Sky Blue
+    QColor adxlColors[] =
+    {
+        QColor(255, 60, 60),      // X
+        QColor(255, 180, 0),      // Y
+        QColor(120, 180, 255)     // Z
     };
 
-    QColor inclinometerColors[] = {
-        QColor(255, 100, 255),  // Inclinometer X - Vivid Magenta
-        QColor(0, 255, 220)     // Inclinometer Y - Aqua Cyan
+    QColor inclinometerColors[] =
+    {
+        QColor(255, 100, 255),
+        QColor(0, 255, 220)
     };
 
-    QColor tempColor(255, 255, 100); // Temperature - Bright Yellow
+    QColor tempColor(255, 255, 100);
+    QColor pressureColor(0, 255, 220);
 
-    //  ADXL X, Y, Z — voltages vs samples (1 unit = 100 ms)
+    QString adxlFreqLabel = QString("Time (1 = %1)").arg("N/A");
 
-    QString adxlFreqLabel = QString("Time (1 = %1 )").arg("N/A");
+    // ============================================================
+    // ADXL PLOTS
+    // ============================================================
 
-    // Apply to all 3 plots
-    setupPlot(ui->customPlot_adxl_x, QString("ADXL X %1").arg(adxlFreqLabel), "Voltage (g)");
-    setupPlot(ui->customPlot_adxl_y, QString("ADXL Y %1").arg(adxlFreqLabel), "Voltage (g)");
-    setupPlot(ui->customPlot_adxl_z, QString("ADXL Z %1").arg(adxlFreqLabel), "Voltage (g)");
+    setupPlot(ui->customPlot_adxl_x,
+              QString("ADXL X %1").arg(adxlFreqLabel),
+              "Voltage (g)");
 
-    ui->customPlot_adxl_x->addGraph(); ui->customPlot_adxl_x->graph(0)->setPen(QPen(adxlColors[0], 1));
-    ui->customPlot_adxl_y->addGraph(); ui->customPlot_adxl_y->graph(0)->setPen(QPen(adxlColors[1], 1));
-    ui->customPlot_adxl_z->addGraph(); ui->customPlot_adxl_z->graph(0)->setPen(QPen(adxlColors[2], 1));
+    setupPlot(ui->customPlot_adxl_y,
+              QString("ADXL Y %1").arg(adxlFreqLabel),
+              "Voltage (g)");
 
-    setupPlot(ui->customPlot_adxl_x_live,QString("ADXL X"),"Voltage (g)");
-    setupPlot(ui->customPlot_adxl_y_live,QString("ADXL Y"),"Voltage (g)");
-    setupPlot(ui->customPlot_adxl_z_live,QString("ADXL Z"),"Voltage (g)");
+    setupPlot(ui->customPlot_adxl_z,
+              QString("ADXL Z %1").arg(adxlFreqLabel),
+              "Voltage (g)");
 
-    ui->customPlot_adxl_x_live->addGraph(); ui->customPlot_adxl_x_live->graph(0)->setPen(QPen(adxlColors[0], 1));
-    ui->customPlot_adxl_y_live->addGraph(); ui->customPlot_adxl_y_live->graph(0)->setPen(QPen(adxlColors[1], 1));
-    ui->customPlot_adxl_z_live->addGraph(); ui->customPlot_adxl_z_live->graph(0)->setPen(QPen(adxlColors[2], 1));
+    ui->customPlot_adxl_x->addGraph();
+    ui->customPlot_adxl_x->graph(0)->setPen(QPen(adxlColors[0], 1));
 
-    //  Inclinometer X, Y — degrees vs time (1 unit = 1)
-    QString InclinometerFreqLabel = QString("Time (1 = %1)").arg("N/A");
+    ui->customPlot_adxl_y->addGraph();
+    ui->customPlot_adxl_y->graph(0)->setPen(QPen(adxlColors[1], 1));
 
+    ui->customPlot_adxl_z->addGraph();
+    ui->customPlot_adxl_z->graph(0)->setPen(QPen(adxlColors[2], 1));
 
-    setupPlot(ui->customPlot_inclinometer_x, QString("Inclinometer Time X %1").arg(InclinometerFreqLabel), "Degrees (°)");
-    setupPlot(ui->customPlot_inclinometer_y,  QString("Inclinometer Time Y %1").arg(InclinometerFreqLabel), "Degrees (°)");
+    // ============================================================
+    // SECOND SET OF ADXL PLOTS
+    // ============================================================
 
-    ui->customPlot_inclinometer_x->addGraph(); ui->customPlot_inclinometer_x->graph(0)->setPen(QPen(inclinometerColors[0], 1));
-    ui->customPlot_inclinometer_y->addGraph(); ui->customPlot_inclinometer_y->graph(0)->setPen(QPen(inclinometerColors[1], 1));
+    setupPlot(ui->customPlot_adxl_x2,
+              QString("ADXL X2 %1").arg(adxlFreqLabel),
+              "Voltage (g)");
 
-    setupPlot(ui->customPlot_incl_x_live,QString("Inclinometer"),"Degrees(°)");
+    setupPlot(ui->customPlot_adxl_y2,
+              QString("ADXL Y2 %1").arg(adxlFreqLabel),
+              "Voltage (g)");
+
+    setupPlot(ui->customPlot_adxl_z2,
+              QString("ADXL Z2 %1").arg(adxlFreqLabel),
+              "Voltage (g)");
+
+    ui->customPlot_adxl_x2->addGraph();
+    ui->customPlot_adxl_x2->graph(0)->setPen(QPen(adxlColors[0], 1));
+
+    ui->customPlot_adxl_y2->addGraph();
+    ui->customPlot_adxl_y2->graph(0)->setPen(QPen(adxlColors[1], 1));
+
+    ui->customPlot_adxl_z2->addGraph();
+    ui->customPlot_adxl_z2->graph(0)->setPen(QPen(adxlColors[2], 1));
+
+    // ============================================================
+    // TEMPERATURE
+    // ============================================================
+
+    setupPlot(ui->customPlot_new_Temp,
+              "Samples",
+              "Temperature (°C)");
+
+    ui->customPlot_new_Temp->addGraph();
+    ui->customPlot_new_Temp->graph(0)->setPen(QPen(tempColor, 1));
+
+    // ============================================================
+    // PRESSURE
+    // ============================================================
+
+    setupPlot(ui->customPlot_new_Pressure,
+              "Samples",
+              "Pressure");
+
+    ui->customPlot_new_Pressure->addGraph();
+    ui->customPlot_new_Pressure->graph(0)->setPen(QPen(pressureColor, 1));
+
+    // ============================================================
+    // INITIAL AXIS RANGES
+    // ============================================================
+
+    QList<QCustomPlot*> normalPlots =
+    {
+        ui->customPlot_adxl_x,
+        ui->customPlot_adxl_y,
+        ui->customPlot_adxl_z,
+
+        ui->customPlot_adxl_x2,
+        ui->customPlot_adxl_y2,
+        ui->customPlot_adxl_z2,
+
+        ui->customPlot_new_Temp,
+        ui->customPlot_new_Pressure
+    };
+
+    for(auto plot : normalPlots)
+    {
+        plot->xAxis->setRange(0, 100);
+        plot->yAxis->setRange(-5, 5);
+        plot->replot();
+    }
+
+    // ============================================================
+    // LIVE PLOTS
+    // ============================================================
+
+    setupPlot(ui->customPlot_adxl_x_live,
+              "ADXL X",
+              "Voltage (g)");
+
+    setupPlot(ui->customPlot_adxl_y_live,
+              "ADXL Y",
+              "Voltage (g)");
+
+    setupPlot(ui->customPlot_adxl_z_live,
+              "ADXL Z",
+              "Voltage (g)");
+
+    ui->customPlot_adxl_x_live->addGraph();
+    ui->customPlot_adxl_x_live->graph(0)->setPen(QPen(adxlColors[0], 1));
+
+    ui->customPlot_adxl_y_live->addGraph();
+    ui->customPlot_adxl_y_live->graph(0)->setPen(QPen(adxlColors[1], 1));
+
+    ui->customPlot_adxl_z_live->addGraph();
+    ui->customPlot_adxl_z_live->graph(0)->setPen(QPen(adxlColors[2], 1));
+
+    setupPlot(ui->customPlot_incl_x_live,
+              "Inclinometer",
+              "Degrees(°)");
 
     ui->customPlot_incl_x_live->addGraph();
     ui->customPlot_incl_x_live->graph(0)->setPen(QPen(inclinometerColors[0], 1));
@@ -688,35 +835,22 @@ void MainWindow::initializeAllPlots()
     legendFont.setPointSize(8);
     ui->customPlot_incl_x_live->legend->setFont(legendFont);
 
-
-
-    //  Temperature — Celsius vs samples
-
-    setupPlot(ui->customPlot_temperature, QString("Samples %1").arg(adxlFreqLabel), "Temperature (°C)");
-
-    ui->customPlot_temperature->addGraph(); ui->customPlot_temperature->graph(0)->setPen(QPen(tempColor, 1));
+    // ============================================================
+    // FFT PLOTS
+    // ============================================================
 
     setupFFTPlot(ui->customPlot_adxl_x_FFT, "ADXL X Frequency (Hz)");
     setupFFTPlot(ui->customPlot_adxl_y_FFT, "ADXL Y Frequency (Hz)");
     setupFFTPlot(ui->customPlot_adxl_z_FFT, "ADXL Z Frequency (Hz)");
 
-    ui->customPlot_adxl_x_FFT->addGraph(); ui->customPlot_adxl_x_FFT->graph(0)->setPen(QPen(tempColor, 1));
-    ui->customPlot_adxl_y_FFT->addGraph(); ui->customPlot_adxl_y_FFT->graph(0)->setPen(QPen(tempColor, 1));
-    ui->customPlot_adxl_z_FFT->addGraph(); ui->customPlot_adxl_z_FFT->graph(0)->setPen(QPen(tempColor, 1));
+    ui->customPlot_adxl_x_FFT->addGraph();
+    ui->customPlot_adxl_x_FFT->graph(0)->setPen(QPen(tempColor, 1));
 
+    ui->customPlot_adxl_y_FFT->addGraph();
+    ui->customPlot_adxl_y_FFT->graph(0)->setPen(QPen(tempColor, 1));
 
-
-
-
-    // Axis ranges start clean
-    for (auto plot : {ui->customPlot_adxl_x, ui->customPlot_adxl_y, ui->customPlot_adxl_z,
-         ui->customPlot_inclinometer_x, ui->customPlot_inclinometer_y,
-         ui->customPlot_temperature,ui->customPlot_adxl_x_FFT,ui->customPlot_adxl_y_FFT,ui->customPlot_adxl_z_FFT})
-    {
-        plot->xAxis->setRange(0, 100);
-        plot->yAxis->setRange(-5, 5);
-        plot->replot();
-    }
+    ui->customPlot_adxl_z_FFT->addGraph();
+    ui->customPlot_adxl_z_FFT->graph(0)->setPen(QPen(tempColor, 1));
 }
 
 void MainWindow::makePacket32UI(QList<QByteArray> &rawPacket32List)
@@ -860,11 +994,6 @@ void MainWindow::makePacket32UI(QList<QByteArray> &rawPacket32List)
             setupPlot(ui->customPlot_adxl_z,QString("ADXL Z Time(1 = %1)").arg(displayAdxlfreq),"Acceleration(g)",1);
 
 
-            setupPlot(ui->customPlot_temperature,QString("Samples Time(1 = %1 s)").arg(682.0/adxlFreq, 0, 'f', 4),"Temperature(°)",1);
-
-            setupPlot(ui->customPlot_inclinometer_x,QString("Inclinometer X Time(1 = %1)").arg(displayInclinometerfreq),"Degrees(°)",1);
-            setupPlot(ui->customPlot_inclinometer_y,QString("Inclinometer Y Time(1 = %1)").arg(displayInclinometerfreq),"Degrees(°)",1);
-
             // Ui blinking
             ui->lineEdit_startTime->setStyleSheet("background-color:yellow");
 
@@ -890,104 +1019,150 @@ void MainWindow::makePacket32UI(QList<QByteArray> &rawPacket32List)
     }
 }
 
-void MainWindow::makePacket4100AdxlTempList(QList<QByteArray> &rawPacket4100AdxlList,
-                                            QList<QByteArray> &rawPacketTemperatureList)
+void MainWindow::makePacket2048AdxlTempListPressureList(
+        QList<QByteArray> &rawPacket2048AdxlList,
+        QList<QByteArray> &rawPacketTemperatureList,
+        QList<QByteArray> &rawPacketPressureList)
 {
     QVector<double> sampleIndex;
-    QVector<double> xAdxl, yAdxl, zAdxl;
-    int globalSample = 1;
 
-    x_0 = x_1 = x_2 = 0.0;
-    x_y_0 = x_y_1 = x_y_2 = 0.0;
+    QVector<double> x1Adxl;
+    QVector<double> y1Adxl;
+    QVector<double> z1Adxl;
 
-    y_0 = y_1 = y_2 = 0.0;
-    y_y_0 = y_y_1 = y_y_2 = 0.0;
+    QVector<double> x2Adxl;
+    QVector<double> y2Adxl;
+    QVector<double> z2Adxl;
 
-    z_0 = z_1 = z_2 = 0.0;
-    z_y_0 = z_y_1 = z_y_2 = 0.0;
-
-    // --- ADXL Data Processing ---
-    for (int p = 0; p < rawPacket4100AdxlList.size(); ++p)
-    {
-        QByteArray packet = rawPacket4100AdxlList[p];
-
-        if (packet.size() < 20)
-        {
-            qDebug() << "Skipping too short ADXL packet:" << packet.size();
-            continue;
-        }
-
-        QByteArray trimmed = packet.mid(3);
-        if (trimmed.size() > 3) trimmed.chop(3); // remove footer
-        if (trimmed.size() > 2) trimmed.chop(2); // remove temperature bytes
-
-        int usableSize = trimmed.size();
-        if (usableSize < 6)
-        {
-            qDebug() << "Packet too short after trimming:" << usableSize;
-            continue;
-        }
-
-        for (int i = 0; i + 5 < usableSize; i += 6)
-        {
-            qint16 xRaw = (static_cast<quint8>(trimmed[i])     << 8) | static_cast<quint8>(trimmed[i + 1]);
-            qint16 yRaw = (static_cast<quint8>(trimmed[i + 2]) << 8) | static_cast<quint8>(trimmed[i + 3]);
-            qint16 zRaw = (static_cast<quint8>(trimmed[i + 4]) << 8) | static_cast<quint8>(trimmed[i + 5]);
-
-            // Keep last 12 bits only first 4 bits eliminate in a 16 bit integer
-            xRaw &= 0x0FFF;
-            yRaw &= 0x0FFF;
-            zRaw &= 0x0FFF;
-
-            sampleIndex.append(globalSample++);
-            xAdxl.append((xRaw * 3.3 * 2) / 4096.0);
-            yAdxl.append((yRaw * 3.3 * 2) / 4096.0);
-            zAdxl.append((zRaw * 3.3 * 2) / 4096.0);
-        }
-
-
-        qDebug() << "Processed ADXL packet" << p << ", extracted" << usableSize / 6 << "samples";
-    }
-
-    for(int g=0;g<xAdxl.size();g++)
-    {
-        xAdxl[g]=(xAdxl[g]-1.65)/0.0063;
-        yAdxl[g]=(yAdxl[g]-1.65)/0.0063;
-        zAdxl[g]=(zAdxl[g]-1.65)/0.0063;
-
-    }
-
-    qDebug() << "Total ADXL samples:" << sampleIndex.size();
-
-
-    // --- Temperature Data Processing ---
     QVector<double> tempIndex;
     QVector<double> temperatureValues;
 
-    for (int i = 0; i < rawPacketTemperatureList.size(); ++i)
+    QVector<double> pressureIndex;
+    QVector<double> pressureValues;
+
+    int globalSample = 1;
+
+    //----------------------------------------------------
+    // ADXL DATA
+    //----------------------------------------------------
+
+    for(int p = 0; p < rawPacket2048AdxlList.size(); p++)
     {
-        QByteArray tempBytes = rawPacketTemperatureList[i];
-        if (tempBytes.size() < 2)
+        QByteArray packet = rawPacket2048AdxlList[p];
+
+        if(packet.size() < (3 + 2040 + 8 + 3))
         {
-            qDebug() << "Skipping short temperature packet:" << tempBytes.size();
+            qDebug() << "Skipping short packet:" << packet.size();
             continue;
         }
 
-        quint16 tempRaw = (static_cast<quint8>(tempBytes[0]) << 8) | static_cast<quint8>(tempBytes[1]);
-        tempIndex.append(i+1);
+        // Remove Header
+        QByteArray payload = packet.mid(3);
 
-        // Keep first 14 bits only last 2 bits eliminate in a 16 bit integer
-        tempRaw &= ~0x0003;
+        // Remove Footer
+        payload.chop(3);
 
-        temperatureValues.append(-46.85 + (175.72 * tempRaw) / 65536.0);
+        // ADXL Region = First 2040 Bytes
+        QByteArray adxlBytes = payload.left(2040);
+
+        for(int i = 0; i + 11 < adxlBytes.size(); i += 12)
+        {
+            quint16 x1 =
+                    (static_cast<quint8>(adxlBytes[i+1]) << 8) |
+                    static_cast<quint8>(adxlBytes[i]);
+            float x1f =  (x1 / 65535.0 ) * 5.12;
+
+            quint16 y1 =
+                    (static_cast<quint8>(adxlBytes[i+3]) << 8) |
+                    static_cast<quint8>(adxlBytes[i+2]);
+            float y1f =  (y1 / 65535.0 ) * 5.12;
+
+            quint16 z1 =
+                    (static_cast<quint8>(adxlBytes[i+5]) << 8) |
+                    static_cast<quint8>(adxlBytes[i+4]);
+            float z1f =  (z1 / 65535.0 ) * 5.12;
+
+
+            quint16 x2 =
+                    (static_cast<quint8>(adxlBytes[i+7]) << 8) |
+                    static_cast<quint8>(adxlBytes[i+6]);
+            float x2f =  (x2 / 65535.0 ) * 5.12;
+
+            quint16 y2 =
+                    (static_cast<quint8>(adxlBytes[i+9]) << 8) |
+                    static_cast<quint8>(adxlBytes[i+8]);
+            float y2f =  (y2 / 65535.0 ) * 5.12;
+
+            quint16 z2 =
+                    (static_cast<quint8>(adxlBytes[i+11]) << 8) |
+                    static_cast<quint8>(adxlBytes[i+10]);
+            float z2f =  (z2 / 65535.0 ) * 5.12;
+
+            sampleIndex.append(globalSample++);
+
+            x1Adxl.append(x1f);
+            y1Adxl.append(y1f);
+            z1Adxl.append(z1f);
+
+            x2Adxl.append(x2f);
+            y2Adxl.append(y2f);
+            z2Adxl.append(z2f);
+        }
     }
 
-    qDebug() << "Total temperature samples:" << temperatureValues.size();
+    qDebug() << "Total ADXL Samples:" << sampleIndex.size();
 
-    // --- Plotting Helper ---
-    auto plotGraph = [](QCustomPlot *plot,
-                        const QVector<double> &x,
-                        const QVector<double> &y)
+    //----------------------------------------------------
+    // TEMPERATURE
+    //----------------------------------------------------
+
+    for(int i = 0; i < rawPacketTemperatureList.size(); i++)
+    {
+        QByteArray tempBytes = rawPacketTemperatureList[i];
+
+        if(tempBytes.size() < 4)
+            continue;
+
+        float tempValue =
+                bytesToFloatMSB(tempBytes);
+
+        tempIndex.append(i + 1);
+        temperatureValues.append(tempValue);
+    }
+
+    qDebug() << "Temperature Samples:"
+             << temperatureValues.size();
+
+    //----------------------------------------------------
+    // PRESSURE
+    //----------------------------------------------------
+
+    for(int i = 0; i < rawPacketPressureList.size(); i++)
+    {
+        QByteArray pressureBytes =
+                rawPacketPressureList[i];
+
+        if(pressureBytes.size() < 4)
+            continue;
+
+        float pressureValue =
+                bytesToFloatMSB(pressureBytes);
+
+        pressureIndex.append(i + 1);
+        pressureValues.append(pressureValue);
+    }
+
+    qDebug() << "Pressure Samples:"
+             << pressureValues.size();
+
+    //----------------------------------------------------
+    // Plot Helper
+    //----------------------------------------------------
+
+    auto plotGraph =
+            [](QCustomPlot *plot,
+               const QVector<double> &x,
+               const QVector<double> &y)
     {
         if(plot->graphCount() == 0 ||
            x.isEmpty() ||
@@ -998,219 +1173,120 @@ void MainWindow::makePacket4100AdxlTempList(QList<QByteArray> &rawPacket4100Adxl
 
         plot->setUpdatesEnabled(false);
 
-        // Clear old graph data
         plot->graph(0)->data()->clear();
 
         constexpr int CHUNK_SIZE = 5000;
 
-        // Add data in chunks
         for(int i = 0; i < x.size(); i += CHUNK_SIZE)
         {
             int count =
-                qMin(CHUNK_SIZE,
-                     x.size() - i);
+                    qMin(CHUNK_SIZE,
+                         x.size() - i);
 
-            // Add partial chunk
             plot->graph(0)->addData(
-                x.mid(i, count),
-                y.mid(i, count));
-
-            // Give UI breathing space
-            if(i > 0 && i % 10000 == 0)
-            {
-                QCoreApplication::processEvents();
-            }
+                        x.mid(i,count),
+                        y.mid(i,count));
         }
 
-        // Set axis range
         plot->xAxis->setRange(
-            x.first(),
-            x.last());
+                    x.first(),
+                    x.last());
 
         plot->graph(0)->rescaleValueAxis();
 
         plot->setUpdatesEnabled(true);
 
-        // Single replot at end
         plot->replot(
-            QCustomPlot::rpQueuedReplot);
+                    QCustomPlot::rpQueuedReplot);
     };
 
+    //----------------------------------------------------
+    // PLOTS
+    //----------------------------------------------------
 
-    // --- Apply LPF on all samples ---
-    xFiltered.clear();
-    yFiltered.clear();
-    zFiltered.clear();
+    plotGraph(
+                ui->customPlot_adxl_x,
+                sampleIndex,
+                x1Adxl);
 
-    for(int i = 0; i < xAdxl.size(); i++)
-    {
-        lpf_secondOrder(xAdxl[i],
-                        yAdxl[i],
-                        zAdxl[i]);
+    plotGraph(
+                ui->customPlot_adxl_y,
+                sampleIndex,
+                y1Adxl);
 
-        // Save filtered outputs
-        xFiltered.append(x_y_0);
-        yFiltered.append(y_y_0);
-        zFiltered.append(z_y_0);
+    plotGraph(
+                ui->customPlot_adxl_z,
+                sampleIndex,
+                z1Adxl);
 
-        // Give UI breathing space every 5000 samples
-        if(i % 5000 == 0)
-        {
-            QCoreApplication::processEvents();
-        }
-    }
+    plotGraph(
+                ui->customPlot_adxl_x2,
+                sampleIndex,
+                x2Adxl);
 
-    // ------------------------------------
-    // Choose RAW or LPF data
-    // ------------------------------------
+    plotGraph(
+                ui->customPlot_adxl_y2,
+                sampleIndex,
+                y2Adxl);
 
-    QVector<double> *xToPlot = &xAdxl;
-    QVector<double> *yToPlot = &yAdxl;
-    QVector<double> *zToPlot = &zAdxl;
+    plotGraph(
+                ui->customPlot_adxl_z2,
+                sampleIndex,
+                z2Adxl);
 
-    if(ui->checkBox_lowPass->isChecked())
-    {
-        xToPlot = &xFiltered;
-        yToPlot = &yFiltered;
-        zToPlot = &zFiltered;
-    }
+    plotGraph(
+                ui->customPlot_new_Temp,
+                tempIndex,
+                temperatureValues);
 
+    plotGraph(
+                ui->customPlot_new_Pressure,
+                pressureIndex,
+                pressureValues);
 
-    // --- Plot ADXL ---
-    plotGraph(ui->customPlot_adxl_x,
-              sampleIndex,
-              *xToPlot);
+    //----------------------------------------------------
+    // Debug
+    //----------------------------------------------------
 
-    QCoreApplication::processEvents();
+    qDebug() << "X1:" << x1Adxl.size();
+    qDebug() << "Y1:" << y1Adxl.size();
+    qDebug() << "Z1:" << z1Adxl.size();
 
-    plotGraph(ui->customPlot_adxl_y,
-              sampleIndex,
-              *yToPlot);
+    qDebug() << "X2:" << x2Adxl.size();
+    qDebug() << "Y2:" << y2Adxl.size();
+    qDebug() << "Z2:" << z2Adxl.size();
 
-    QCoreApplication::processEvents();
+    qDebug() << "Temp:" << temperatureValues.size();
+    qDebug() << "Pressure:" << pressureValues.size();
 
-    plotGraph(ui->customPlot_adxl_z,
-              sampleIndex,
-              *zToPlot);
+    this->finalSampleIndexNew = sampleIndex;
 
+    this->finalX1AdxlNew = x1Adxl;
+    this->finalY1AdxlNew = y1Adxl;
+    this->finalZ1AdxlNew = z1Adxl;
 
-    // --- Plot Temperature ---
-    plotGraph(ui->customPlot_temperature,
-              tempIndex,
-              temperatureValues);
+    this->finalX2AdxlNew = x2Adxl;
+    this->finalY2AdxlNew = y2Adxl;
+    this->finalZ2AdxlNew = z2Adxl;
 
+    this->finalTempIndexNew = tempIndex;
+    this->finalTemperatureNew = temperatureValues;
 
-    // --- Save global values ---
-    this->finalAdxlIndex = sampleIndex;
-    this->finalXAdxl = *xToPlot;
-    this->finalYAdxl = *yToPlot;
-    this->finalZAdxl = *zToPlot;
+    this->finalPressureIndexNew = pressureIndex;
+    this->finalPressureNew = pressureValues;
 
-    this->finalTempIndex = tempIndex;
-    this->finalTemperature = temperatureValues;
+    qDebug() << "Stored Samples :" << finalSampleIndexNew.size();
 
-    // --- FFT Plot ---
-    double Fs = adxlFreq;
-    qDebug() << "Debug 1";
+    qDebug() << "Stored X1 :" << finalX1AdxlNew.size();
+    qDebug() << "Stored Y1 :" << finalY1AdxlNew.size();
+    qDebug() << "Stored Z1 :" << finalZ1AdxlNew.size();
 
-    try {
-        computeAndPlotFFT(*xToPlot, Fs, ui->customPlot_adxl_x_FFT);
-    }
-    catch (std::exception &ex) {
-        qCritical() << "computeAndPlotFFT exception:" << ex.what();
-    }
-    catch (...) {
-        qCritical() << "computeAndPlotFFT unknown crash";
-    }
+    qDebug() << "Stored X2 :" << finalX2AdxlNew.size();
+    qDebug() << "Stored Y2 :" << finalY2AdxlNew.size();
+    qDebug() << "Stored Z2 :" << finalZ2AdxlNew.size();
 
-    qDebug() << "Debug 2";
-
-
-    computeAndPlotFFT(*yToPlot, Fs, ui->customPlot_adxl_y_FFT);
-    computeAndPlotFFT(*zToPlot, Fs, ui->customPlot_adxl_z_FFT);
-}
-
-void MainWindow::makePacket4100InclList(QList<QByteArray> &rawPacket4100InclList)
-{
-    QVector<double> sampleIndex;
-    QVector<double> inclX, inclY;
-    int globalSample = 1;
-
-    for (int p = 0; p < rawPacket4100InclList.size(); ++p)
-    {
-        QByteArray packet = rawPacket4100InclList[p];
-
-        if (packet.size() < 20)
-        {
-            qDebug() << "Skipping too short Inclinometer packet:" << packet.size();
-            continue;
-        }
-
-        // Remove header (3 bytes)
-        QByteArray trimmed = packet.mid(3);
-
-        // Remove footer (3 bytes)
-        if (trimmed.size() > 3)
-            trimmed.chop(3);
-
-        // Remove last 2 dummy bytes before footer
-        if (trimmed.size() > 2)
-            trimmed.chop(2);
-
-        int usableSize = trimmed.size();
-        if (usableSize < 4)
-        {
-            qDebug() << "Packet too short after trimming:" << usableSize;
-            continue;
-        }
-
-        // Process each 4-byte sample (Xg, Yg)
-        for (int i = 0; i + 3 < usableSize; i += 4)
-        {
-            qint16 xRaw = (static_cast<quint8>(trimmed[i + 1])     << 8) | static_cast<quint8>(trimmed[i]);
-            qint16 yRaw = (static_cast<quint8>(trimmed[i + 3]) << 8) | static_cast<quint8>(trimmed[i + 2]);
-
-            // Convert to g-values
-            double xg = (xRaw * 0.031) / 1000.0;
-            double yg = (yRaw * 0.031) / 1000.0;
-
-            // Clamp to [-1, 1]
-            xg = std::max(-1.0, std::min(1.0, xg));
-            yg = std::max(-1.0, std::min(1.0, yg));
-
-            // Convert to degrees
-            double xDeg = std::asin(xg) * (180.0 / M_PI);
-            double yDeg = std::asin(yg) * (180.0 / M_PI);
-
-            sampleIndex.append(globalSample++);
-            inclX.append(xDeg);
-            inclY.append(yDeg);
-        }
-
-        qDebug() << "Processed Incl packet" << p << ", extracted" << usableSize / 4 << "samples";
-    }
-
-    qDebug() << "Total Incl samples:" << sampleIndex.size();
-
-    // --- Plotting ---
-    auto plotGraph = [](QCustomPlot *plot, const QVector<double> &x, const QVector<double> &y)
-    {
-        if (plot->graphCount() > 0)
-        {
-            plot->graph(0)->setData(x, y);
-            plot->rescaleAxes();
-            plot->replot(QCustomPlot::rpQueuedReplot);
-        }
-    };
-
-    plotGraph(ui->customPlot_inclinometer_x, sampleIndex, inclX);
-    plotGraph(ui->customPlot_inclinometer_y, sampleIndex, inclY);
-
-    // --- Passing local values to global values
-    this->finalInclIndex = sampleIndex;
-    this->finalInclX = inclX;
-    this->finalInclY = inclY;
-
+    qDebug() << "Stored Temp :" << finalTemperatureNew.size();
+    qDebug() << "Stored Pressure :" << finalPressureNew.size();
 }
 
 bool MainWindow::saveAllSensorDataToExcel(
@@ -1220,9 +1296,6 @@ bool MainWindow::saveAllSensorDataToExcel(
         const QVector<double> &zAdxl,
         const QVector<double> &tempIndex,
         const QVector<double> &temperature,
-        const QVector<double> &inclIndex,
-        const QVector<double> &inclX,
-        const QVector<double> &inclY,
         const QString &fullPath)
 {
     QXlsx::Document xlsx;
@@ -1390,13 +1463,9 @@ bool MainWindow::saveAllSensorDataToExcel(
     const int tempSize =
             temperature.size();
 
-    const int inclSize =
-            inclX.size();
 
     const int maxSize =
-            qMax(qMax(adxlSize,
-                      tempSize),
-                 inclSize);
+            qMax(adxlSize,tempSize);
 
     // =====================================================
     // WRITE DATA (FAST VERSION)
@@ -1444,25 +1513,8 @@ bool MainWindow::saveAllSensorDataToExcel(
                         temperature[i]);
         }
 
-        // ------------- INCL ------------------
-        if(i < inclSize)
-        {
-            xlsx.write(
-                        row,9,
-                        inclIndex[i]);
 
-            xlsx.write(
-                        row,10,
-                        inclX[i]);
-
-            xlsx.write(
-                        row,11,
-                        inclY[i]);
-        }
-
-        ++row;
     }
-
     return xlsx.saveAs(fullPath);
 }
 
@@ -1477,11 +1529,6 @@ void MainWindow::initializeSensorVectors()
     // --- Temperature ---
     finalTempIndex.clear();
     finalTemperature.clear();
-
-    // --- Inclinometer ---
-    finalInclIndex.clear();
-    finalInclX.clear();
-    finalInclY.clear();
 
     //--- Live Data----
 
@@ -1530,196 +1577,295 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
 {
     QByteArray data = byteArrayData;
 
-    // Get Event Data Command mdgId 0x01
-    if(data.startsWith(QByteArray::fromHex("AA BB")) && data.endsWith(QByteArray::fromHex("AA BB CC DD FF")))
+    // Get Event Data Command msgId 0x01
+    if(data.startsWith(QByteArray::fromHex("AA BB")) &&
+       data.endsWith(QByteArray::fromHex("AA BB CC DD FF")))
     {
-        int i = 0;
+        int i = 2; // Skip Ultimate Header (AA BB)
 
         QList<QByteArray> packet32List;
-        QList<QByteArray> packet4100AdxlList;
-        QList<QByteArray> packet4100InclList;
+        QList<QByteArray> packet2048AdxlList;
+
         QList<QByteArray> packetTemperatureList;
+        QList<QByteArray> packetPressureList;
 
         int invalidHeaderCount = 0;
 
-        while (i < data.size())
+        while(i < data.size() - 5) // ignore ultimate footer
         {
-            //  Make sure we have at least 3 bytes for a header
-            if (i + 3 > data.size())
-                break;
-
-            QByteArray header = data.mid(i, 3);
-
-            // --- Case 1: Packet32 ---
-            if (header.startsWith(QByteArray::fromHex("AA BB")))
+            // -------------------------------------------------
+            // CASE 1 : 32 BYTE PACKET
+            // Header = AA BB
+            // Total Size = 32 bytes
+            // -------------------------------------------------
+            if(data.mid(i, 2) == QByteArray::fromHex("AA BB"))
             {
-                if (i + 32 <= data.size())
+                if(i + 32 <= data.size())
                 {
                     QByteArray packet32 = data.mid(i, 32);
 
                     packet32List.append(packet32);
+
+                    qDebug() << "Packet32 Found, Size:"
+                             << packet32.size();
+
                     i += 32;
                     continue;
                 }
-                else break; // incomplete packet at end
-            }
-
-            // --- Case 2: Packet4100_ADXL ---
-            else if (header == QByteArray::fromHex("CC DD FF"))
-            {
-                if (i + 4100 <= data.size())
+                else
                 {
-                    QByteArray packet4100 = data.mid(i, 4100);
-                    if (packet4100.endsWith(QByteArray::fromHex("FF EE FF")))
-                    {
-                        if(packet4100.contains(QByteArray::fromHex("FF FF FF FF FF FF")))
-                        {
-                            // Special condition FF's checking
-                            QByteArray specialPacket = packet4100;
-
-                            qDebug()<<"Consecutive FF's detected at packet [ADXL]: "+QString::number(packet4100AdxlList.size());
-                            writeToNotes("Consecutive FF's detected at packet [ADXL]: " + QString::number(packet4100AdxlList.size()));
-
-
-                            int fIndex = specialPacket.indexOf(QByteArray::fromHex("FF FF FF FF FF FF"));
-                            qDebug()<<fIndex<<" :fIndex";
-
-                            qDebug()<< "Removing ff bytes count [ADXL]: " << (specialPacket.size() - fIndex) - 5;
-                            writeToNotes("Removing ff bytes count [ADXL]: " + QString::number((specialPacket.size() - fIndex) - 5));
-
-                            specialPacket.remove(fIndex,(specialPacket.size() - fIndex) - 5);
-
-
-                            packet4100AdxlList.append(specialPacket);
-                            qDebug()<<specialPacket.toHex(' ').toUpper()<<" :specialPacket";
-
-                            // writeToNotes Log
-                            writeToNotes("fIndex (start of FFs) [ADXL]: " + QString::number(fIndex));
-                            writeToNotes("specialPacket [ADXL]: " + specialPacket.toHex(' ').toUpper());
-                        }
-                        else
-                        {
-                            // Normal condition
-                            packet4100AdxlList.append(packet4100);
-                        }
-
-                        // Extract last 2 bytes before footer as temperature
-                        QByteArray tempBytes = packet4100.mid(4100 - 5, 2);
-                        packetTemperatureList.append(tempBytes);
-                    }
-                    else
-                    {
-                        invalidHeaderCount++;
-                    }
-                    i += 4100;
-                    continue;
+                    writeToNotes(
+                        "Incomplete Packet32 found.");
+                    break;
                 }
-                else break;
             }
 
-            // --- Case 3: Packet4100_INCLINOMETER ---
-            else if (header == QByteArray::fromHex("EE FF FF"))
+            // -------------------------------------------------
+            // CASE 2 : ADXL PACKET
+            // Header = CC DD FF
+            // Footer = FF EE FF
+            // -------------------------------------------------
+            else if(data.mid(i, 3) == QByteArray::fromHex("CC DD FF"))
             {
-                if (i + 4100 <= data.size())
+                int footerPos =
+                        data.indexOf(
+                            QByteArray::fromHex("FF EE FF"),
+                            i);
+
+                if(footerPos < 0)
                 {
-                    QByteArray packet4100 = data.mid(i, 4100);
-                    if (packet4100.endsWith(QByteArray::fromHex("FF CC DD")))
-                    {
-                        if(packet4100.contains(QByteArray::fromHex("FF FF FF FF FF FF")))
-                        {
-                            // Special condition FF's checking
-                            QByteArray specialPacket = packet4100;
+                    writeToNotes(
+                        "ADXL footer not found.");
 
-                            qDebug()<<"Consecutive FF's detected at packet [INCLINOMETER]: "+QString::number(packet4100InclList.size());
-                            writeToNotes("Consecutive FF's detected at packet [INCLINOMETER]: " + QString::number(packet4100InclList.size()));
-
-
-                            int fIndex = specialPacket.indexOf(QByteArray::fromHex("FF FF FF FF FF FF"));
-                            qDebug()<<fIndex<<" :fIndex";
-
-                            qDebug()<< "Removing ff bytes count [INCLINOMETER]: " << (specialPacket.size() - fIndex) - 5;
-                            writeToNotes("Removing ff bytes count [INCLINOMETER]: " + QString::number((specialPacket.size() - fIndex) - 5));
-
-                            specialPacket.remove(fIndex,(specialPacket.size() - fIndex) - 5);
-
-
-                            packet4100InclList.append(specialPacket);
-                            qDebug()<<specialPacket.toHex(' ').toUpper()<<" :specialPacket";
-
-                            // writeToNotes Log
-                            writeToNotes("fIndex (start of FFs) [INCLINOMETER]: " + QString::number(fIndex));
-                            writeToNotes("specialPacket [INCLINOMETER]: " + specialPacket.toHex(' ').toUpper());
-                        }
-                        else
-                        {
-                            // Normal condition
-                            packet4100InclList.append(packet4100);
-                        }
-                    }
-                    else
-                    {
-                        invalidHeaderCount++;
-                    }
-                    i += 4100;
-                    continue;
+                    invalidHeaderCount++;
+                    break;
                 }
-                else break;
+
+                QByteArray packet2048 =
+                        data.mid(
+                            i,
+                            footerPos - i + 3);
+
+                // ---------------------------------------------
+                // FF FF FF FF FF FF Special Condition
+                // ---------------------------------------------
+                if(packet2048.contains(
+                        QByteArray::fromHex(
+                            "FF FF FF FF FF FF")))
+                {
+                    QByteArray specialPacket =
+                            packet2048;
+
+                    int fIndex =
+                            specialPacket.indexOf(
+                                QByteArray::fromHex(
+                                    "FF FF FF FF FF FF"));
+
+                    qDebug()
+                            << "Consecutive FF's detected at packet [ADXL]:"
+                            << packet2048AdxlList.size();
+
+                    writeToNotes(
+                        "Consecutive FF's detected at packet [ADXL]: "
+                        + QString::number(
+                            packet2048AdxlList.size()));
+
+                    qDebug()
+                            << "fIndex:"
+                            << fIndex;
+
+                    writeToNotes(
+                        "fIndex (start of FFs) [ADXL]: "
+                        + QString::number(fIndex));
+
+                    int bytesRemoved =
+                            (specialPacket.size() - fIndex) - 3;
+
+                    qDebug()
+                            << "Removing FF bytes count [ADXL]:"
+                            << bytesRemoved;
+
+                    writeToNotes(
+                        "Removing FF bytes count [ADXL]: "
+                        + QString::number(bytesRemoved));
+
+                    specialPacket.remove(
+                                fIndex,
+                                bytesRemoved);
+
+                    packet2048AdxlList.append(
+                                specialPacket);
+
+                    writeToNotes(
+                        "specialPacket [ADXL]: "
+                        + specialPacket
+                              .toHex(' ')
+                              .toUpper());
+                }
+                else
+                {
+                    packet2048AdxlList.append(
+                                packet2048);
+                }
+
+                // ---------------------------------------------
+                // Extract Temperature & Pressure
+                //
+                // Last layout:
+                //
+                // Temp(4)
+                // Pressure(4)
+                // FF EE FF
+                // ---------------------------------------------
+                if(packet2048.size() >= 14)
+                {
+                    int footerIndex =
+                            packet2048.size() - 3;
+
+                    QByteArray tempBytes =
+                            packet2048.mid(
+                                footerIndex - 8,
+                                4);
+
+                    QByteArray pressureBytes =
+                            packet2048.mid(
+                                footerIndex - 4,
+                                4);
+
+                    packetTemperatureList
+                            .append(tempBytes);
+
+                    packetPressureList
+                            .append(pressureBytes);
+                }
+                else
+                {
+                    writeToNotes(
+                        "ADXL packet too small for Temp/Pressure extraction.");
+                }
+
+
+                i = footerPos + 3;
+                continue;
             }
 
-            // --- Case 4: Unknown header ---
+            // -------------------------------------------------
+            // CASE 3 : Unknown Header
+            // -------------------------------------------------
             else
             {
-                // Unknown header found — treat as invalid frame
-                int next = qMin(i + 4100, data.size());  // move by full packet size
-                QByteArray maybeFooter = data.mid(next - 3, 3);
+                QByteArray unknownHeader =
+                        data.mid(i, 3);
 
-                qDebug() << "Unknown header" << header.toHex()
-                         << "possible footer" << maybeFooter.toHex();
+                qDebug()
+                        << "Unknown Header:"
+                        << unknownHeader.toHex();
 
-                writeToNotes("Unknown header: " + header.toHex(' ').toUpper() +
-                             " | possible footer: " + maybeFooter.toHex(' ').toUpper());
+                writeToNotes(
+                    "Unknown Header: "
+                    + unknownHeader
+                          .toHex(' ')
+                          .toUpper());
 
                 invalidHeaderCount++;
-                i = next;  // skip full 4100 bytes
+
+                // move one byte forward and keep searching
+                i++;
             }
         }
 
-        // Summary logs
-        qDebug() << " Packet32 count:" << packet32List.size();
-        qDebug() << " Packet4100 ADXL count:" << packet4100AdxlList.size();
-        qDebug() << " Packet4100 Inclinometer count:" << packet4100InclList.size();
-        qDebug() << " Temperature samples:" << packetTemperatureList.size();
-        qDebug() << " Invalid headers:" << invalidHeaderCount;
+        // -------------------------------------------------
+        // Summary Logs
+        // -------------------------------------------------
+        writeToNotes(
+            "Packet32 count: "
+            + QString::number(
+                packet32List.size()));
 
-        if(packetTemperatureList.size() != 147)
+
+        writeToNotes(
+            "Packet2048 ADXL count: "
+            + QString::number(
+                packet2048AdxlList.size()));
+
+        writeToNotes(
+            "Temperature samples: "
+            + QString::number(
+                packetTemperatureList.size()));
+
+        writeToNotes(
+            "Pressure samples: "
+            + QString::number(
+                packetPressureList.size()));
+
+        writeToNotes(
+            "Invalid headers: "
+            + QString::number(
+                invalidHeaderCount));
+
+        // -------------------------------------------------
+        // UI Updates
+        // -------------------------------------------------
+        makePacket32UI(packet32List);
+
+
+        //Display Purpose Start ----------------------------------------
+        writeToNotes("========== Packet Summary ==========");
+        // First Packet32
+        if(!packet32List.isEmpty())
         {
-            qDebug()<<"Lesser Adxl/Temperature Packets Detected With Size : "<<packetTemperatureList.size();
-            writeToNotes("Lesser Adxl/Temperature Packets Detected With Size : "+QString::number(packetTemperatureList.size()));
-
+            writeToNotes("First Packet32 : "
+                         + packet32List.first().toHex(' ').toUpper());
         }
 
-        // writeToNotes log
-        writeToNotes("Packet32 count: " + QString::number(packet32List.size()));
-        writeToNotes("Packet4100 ADXL count: " + QString::number(packet4100AdxlList.size()));
-        writeToNotes("Packet4100 Inclinometer count: " + QString::number(packet4100InclList.size()));
-        writeToNotes("Temperature samples: " + QString::number(packetTemperatureList.size()));
-        writeToNotes("Invalid headers: " + QString::number(invalidHeaderCount));
+        // First ADXL Packet
+        if(!packet2048AdxlList.isEmpty())
+        {
+            writeToNotes("First ADXL Packet Size : "
+                         + QString::number(packet2048AdxlList.first().size()));
+
+            writeToNotes("First ADXL Packet : "
+                         + packet2048AdxlList.first().toHex(' ').toUpper());
+        }
+
+        // First Temperature
+        if(!packetTemperatureList.isEmpty())
+        {
+            writeToNotes("First Temperature Bytes : "
+                         + packetTemperatureList.first().toHex(' ').toUpper());
+        }
+
+        // First Pressure
+        if(!packetPressureList.isEmpty())
+        {
+            writeToNotes("First Pressure Bytes : "
+                         + packetPressureList.first().toHex(' ').toUpper());
+        }
+
+        writeToNotes("====================================");
+        //Display Purpose End ----------------------------------------
+
+        makePacket2048AdxlTempListPressureList(
+                    packet2048AdxlList,
+                    packetTemperatureList,
+                    packetPressureList);
+
+        // Closing dialog after plotting
+        if(dlgPlot)
+        {
+            dlgPlot->close();
+            dlgPlot = nullptr;
+        }
 
 
-        //Making Packets
-        makePacket32UI(packet32List);
-        makePacket4100AdxlTempList(packet4100AdxlList,packetTemperatureList);
-        makePacket4100InclList(packet4100InclList);
+        // NEW CODE : CSV DUMP ONLY --------------------------------- BEGIN
 
-        // NEW CODE : 18May2026 --------------------------------- BEGIN
-
-        // Save ADXL CSV
         startAdxlCsvSaving(
                     [=]()
         {
-            // This runs ONLY after CSV completes
-
-            blinkLabel(ui->label_csv,300,"CSV OFF");
+            blinkLabel(ui->label_csv,
+                       300,
+                       "CSV OFF");
 
             if(dlgPlot)
             {
@@ -1727,91 +1873,13 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
                 dlgPlot = nullptr;
             }
 
-            // ---------------------------------
-            // Excel code continues here
-            // ---------------------------------
-
-            QString defaultName =
-                    QString("SensorData_%1")
-                    .arg(QDateTime::currentDateTime()
-                         .toString("yyyyMMdd_HHmmss"));
-
-            QString desktopPath =
-                    QStandardPaths::writableLocation(
-                        QStandardPaths::DesktopLocation);
-
-            QString fullPath =
-                    QFileDialog::getSaveFileName(
+            QMessageBox::information(
                         this,
-                        "Save Sensor Data",
-                        desktopPath + "/" + defaultName,
-                        "Excel Files (*.xlsx)");
-
-            if(fullPath.isEmpty())
-            {
-                return;
-            }
-
-            QDialog *excelSavingDialog =
-                    createPleaseWaitDialog(
-                        "⏳ Please Wait, Data Saving ...");
-
-            QFutureWatcher<bool> *watcher =
-                    new QFutureWatcher<bool>(
-                        this);
-
-            connect(watcher,
-                    &QFutureWatcher<bool>::finished,
-                    this,
-                    [=]()
-            {
-                bool ok =
-                        watcher->result();
-
-                if(excelSavingDialog)
-                {
-                    excelSavingDialog->close();
-                    excelSavingDialog->deleteLater();
-                }
-
-                watcher->deleteLater();
-
-                if(ok)
-                {
-                    QMessageBox::information(
-                                this,
-                                "Success",
-                                "Excel data saved successfully.");
-                }
-                else
-                {
-                    QMessageBox::critical(
-                                this,
-                                "Error",
-                                "Failed to save excel file.");
-                }
-            });
-
-            watcher->setFuture(
-                        QtConcurrent::run(
-                            [=]()
-            {
-                return saveAllSensorDataToExcel(
-                            finalAdxlIndex,
-                            finalXAdxl,
-                            finalYAdxl,
-                            finalZAdxl,
-                            finalTempIndex,
-                            finalTemperature,
-                            finalInclIndex,
-                            finalInclX,
-                            finalInclY,
-                            fullPath);
-            }));
+                        "Success",
+                        "CSV data saved successfully.");
         });
 
-        // NEW CODE : 18May2026 --------------------------------- END
-
+        // NEW CODE : CSV DUMP ONLY --------------------------------- END
 
     }
     // Get Event Data Command Nack Condition mdgId 0x01
@@ -1984,7 +2052,6 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
         saveAllSensorDataToExcel(
                     finalAdxlIndex, finalXAdxl, finalYAdxl, finalZAdxl,
                     finalTempIndex, finalTemperature,
-                    finalInclIndex, finalInclX, finalInclY,
                     fullPath);
 
         if(excelSavingDialog)
@@ -2299,10 +2366,7 @@ void MainWindow::on_pushButton_stopPlot_clicked()
         !finalYAdxl.isEmpty() &&
         !finalZAdxl.isEmpty() &&
         !finalTempIndex.isEmpty() &&
-        !finalTemperature.isEmpty() &&
-        !finalInclIndex.isEmpty() &&
-        !finalInclX.isEmpty() &&
-        !finalInclY.isEmpty())
+        !finalTemperature.isEmpty())
     {
         saveAllSensorDataToExcel(
                     finalAdxlIndex,
@@ -2311,9 +2375,6 @@ void MainWindow::on_pushButton_stopPlot_clicked()
                     finalZAdxl,
                     finalTempIndex,
                     finalTemperature,
-                    finalInclIndex,
-                    finalInclX,
-                    finalInclY,
                     fullPath);
     }
     else
@@ -2332,9 +2393,11 @@ void MainWindow::on_pushButton_enlargePlot_clicked()
     if (selected == "ADXL_X")          plot = ui->customPlot_adxl_x;
     else if (selected == "ADXL_Y")     plot = ui->customPlot_adxl_y;
     else if (selected == "ADXL_Z")     plot = ui->customPlot_adxl_z;
-    else if (selected == "Temperature") plot = ui->customPlot_temperature;
-    else if (selected == "Inclinometer_X") plot = ui->customPlot_inclinometer_x;
-    else if (selected == "Inclinometer_Y") plot = ui->customPlot_inclinometer_y;
+    else if (selected == "ADXL_X2") plot = ui->customPlot_adxl_x2;
+    else if (selected == "ADXL_Y2") plot = ui->customPlot_adxl_y2;
+    else if (selected == "ADXL_Z2") plot = ui->customPlot_adxl_z2;
+    else if (selected == "Temperature") plot = ui->customPlot_new_Temp;
+    else if (selected == "Pressure") plot = ui->customPlot_new_Pressure;
 
     if (!plot)
     {
@@ -2357,9 +2420,11 @@ void MainWindow::on_pushButton_fitToScreen_clicked()
         ui->customPlot_adxl_x,
         ui->customPlot_adxl_y,
         ui->customPlot_adxl_z,
-        ui->customPlot_inclinometer_x,
-        ui->customPlot_inclinometer_y,
-        ui->customPlot_temperature
+        ui->customPlot_adxl_x2,
+        ui->customPlot_adxl_y2,
+        ui->customPlot_adxl_z2,
+        ui->customPlot_new_Temp,
+        ui->customPlot_new_Pressure
     };
 
     // Iterate through each and fit accordingly
@@ -2496,9 +2561,11 @@ void MainWindow::on_pushButton_clearPlots_clicked()
         ui->customPlot_adxl_x,
         ui->customPlot_adxl_y,
         ui->customPlot_adxl_z,
-        ui->customPlot_inclinometer_x,
-        ui->customPlot_inclinometer_y,
-        ui->customPlot_temperature
+        ui->customPlot_adxl_x2,
+        ui->customPlot_adxl_y2,
+        ui->customPlot_adxl_z2,
+        ui->customPlot_new_Temp,
+        ui->customPlot_new_Pressure
     };
 
     for (QCustomPlot *plot : allPlots)
@@ -2899,7 +2966,16 @@ void MainWindow::startAdxlCsvSaving(
 
         watcher->deleteLater();
 
-        // Continue flow
+        if(!ok)
+        {
+            QMessageBox::critical(
+                        this,
+                        "Error",
+                        "Failed to save CSV file.");
+
+            return;
+        }
+
         if(onFinished)
         {
             onFinished();
@@ -2911,21 +2987,49 @@ void MainWindow::startAdxlCsvSaving(
                     [=]()
     {
         return saveAdxlToCsv(
-                    finalAdxlIndex,
-                    finalXAdxl,
-                    finalYAdxl,
-                    finalZAdxl,
+                    finalSampleIndexNew,
+
+                    finalX1AdxlNew,
+                    finalY1AdxlNew,
+                    finalZ1AdxlNew,
+
+                    finalX2AdxlNew,
+                    finalY2AdxlNew,
+                    finalZ2AdxlNew,
+
+                    finalTempIndexNew,
+                    finalTemperatureNew,
+
+                    finalPressureIndexNew,
+                    finalPressureNew,
+
                     csvPath);
     }));
 }
 
 bool MainWindow::saveAdxlToCsv(
         const QVector<double> &sampleIndex,
-        const QVector<double> &xAdxl,
-        const QVector<double> &yAdxl,
-        const QVector<double> &zAdxl,
+
+        const QVector<double> &x1Adxl,
+        const QVector<double> &y1Adxl,
+        const QVector<double> &z1Adxl,
+
+        const QVector<double> &x2Adxl,
+        const QVector<double> &y2Adxl,
+        const QVector<double> &z2Adxl,
+
+        const QVector<double> &tempIndex,
+        const QVector<double> &temperature,
+
+        const QVector<double> &pressureIndex,
+        const QVector<double> &pressure,
+
         const QString &filePath)
 {
+
+    Q_UNUSED(tempIndex);
+    Q_UNUSED(pressureIndex);
+
     QFile file(filePath);
 
     if(!file.open(
@@ -2946,9 +3050,9 @@ bool MainWindow::saveAdxlToCsv(
 
     out.setRealNumberPrecision(6);
 
-    // -----------------------------------
-    // Row 1 : Metadata
-    // -----------------------------------
+    //----------------------------------------------------
+    // Metadata
+    //----------------------------------------------------
 
     out
     << "Event ID,"
@@ -2959,57 +3063,94 @@ bool MainWindow::saveAdxlToCsv(
     << formattedEnd
     << "\n";
 
-    // Empty row for readability
     out << "\n";
 
-    // -----------------------------------
-    // Row 3 : Header
-    // -----------------------------------
+    //----------------------------------------------------
+    // Combined Data Header
+    //----------------------------------------------------
 
     out
     << "Sample Number,"
-       "ADXL X (g),"
-       "ADXL Y (g),"
-       "ADXL Z (g)\n";
+    << "ADXL X1,"
+    << "ADXL Y1,"
+    << "ADXL Z1,"
+    << "ADXL X2,"
+    << "ADXL Y2,"
+    << "ADXL Z2,"
+    << "Temperature,"
+    << "Pressure\n";
 
-    const int size =
-            xAdxl.size();
+    //----------------------------------------------------
+    // Combined Data
+    //----------------------------------------------------
 
-    // -----------------------------------
-    // Data
-    // -----------------------------------
+    const int adxlRows =
+            sampleIndex.size();
 
     for(int i = 0;
-        i < size;
+        i < adxlRows;
         ++i)
     {
         out
         << sampleIndex[i] << ","
-        << xAdxl[i] << ","
-        << yAdxl[i] << ","
-        << zAdxl[i]
-        << "\n";
+        << x1Adxl[i] << ","
+        << y1Adxl[i] << ","
+        << z1Adxl[i] << ","
+        << x2Adxl[i] << ","
+        << y2Adxl[i] << ","
+        << z2Adxl[i] << ",";
 
-        // Flush periodically
+        // Temperature Column
+        if(i < temperature.size())
+        {
+            out << temperature[i];
+        }
+
+        out << ",";
+
+        // Pressure Column
+        if(i < pressure.size())
+        {
+            out << pressure[i];
+        }
+
+        out << "\n";
+
         if(i > 0 &&
            i % 100000 == 0)
         {
             out.flush();
 
-            ui->label_csv->setText(
-                        QString(
-                            "Rows : %1")
-                        .arg(i));
+            qDebug()
+                    << "CSV Rows Written:"
+                    << i;
         }
     }
 
+    //----------------------------------------------------
+    // Finish
+    //----------------------------------------------------
+
     out.flush();
+
     file.flush();
     file.close();
 
     qDebug()
             << "CSV save completed:"
             << filePath;
+
+    qDebug()
+            << "ADXL Rows:"
+            << adxlRows;
+
+    qDebug()
+            << "Temperature Rows:"
+            << temperature.size();
+
+    qDebug()
+            << "Pressure Rows:"
+            << pressure.size();
 
     return true;
 }
@@ -3268,8 +3409,6 @@ void MainWindow::dataProcessing(const QByteArray &byteArrayData)
             }
         }
 
-        makePacket4100AdxlLive(packet4100Adxl);
-
     }
     else if(data.startsWith(QByteArray::fromHex("EE FF FF")))
     {
@@ -3333,102 +3472,7 @@ quint64 getCurrentProcessMemoryMB()
     return pmc.WorkingSetSize / (1024 * 1024);
 }
 
-void MainWindow::makePacket4100AdxlLive(const QByteArray &rawPacket4100Adxl)
-{
-    QVector<double> sampleIndex;
-    QVector<double> xAdxl, yAdxl, zAdxl;
-    int globalSample = 0;
-    qDebug()<<"Extracting bytes";
 
-    // --- ADXL Data Processing ---
-
-    QByteArray packet = rawPacket4100Adxl;
-
-    if (packet.size() < 20)
-    {
-        qDebug() << "Skipping too short ADXL packet:" << packet.size();
-        return;
-    }
-
-    QByteArray trimmed = packet.mid(3);
-    if (trimmed.size() > 3) trimmed.chop(3); // remove footer
-    if (trimmed.size() > 2) trimmed.chop(2); // remove temperature bytes
-
-    int usableSize = trimmed.size();
-    if (usableSize < 6)
-    {
-        qDebug() << "Packet too short after trimming:" << usableSize;
-        return;
-    }
-
-    for (int i = 0; i + 5 < usableSize; i += 6)
-    {
-        qint16 xRaw = (static_cast<quint8>(trimmed[i])     << 8) | static_cast<quint8>(trimmed[i + 1]);
-        qint16 yRaw = (static_cast<quint8>(trimmed[i + 2]) << 8) | static_cast<quint8>(trimmed[i + 3]);
-        qint16 zRaw = (static_cast<quint8>(trimmed[i + 4]) << 8) | static_cast<quint8>(trimmed[i + 5]);
-
-        // Keep last 12 bits only first 4 bits eliminate in a 16 bit integer
-        xRaw &= 0x0FFF;
-        yRaw &= 0x0FFF;
-        zRaw &= 0x0FFF;
-
-        sampleIndex.append(globalSample++);
-        xAdxl.append((xRaw * 3.3 * 2) / 4096.0);
-        yAdxl.append((yRaw * 3.3 * 2) / 4096.0);
-        zAdxl.append((zRaw * 3.3 * 2) / 4096.0);
-    }
-    for(int g=0;g<xAdxl.size();g++){
-        xAdxl[g]=(xAdxl[g]-1.65)/0.0063;
-        yAdxl[g]=(yAdxl[g]-1.65)/0.0063;
-        zAdxl[g]=(zAdxl[g]-1.65)/0.0063;
-
-    }
-    if (adxlWindow < 0) {
-        adxlWindow = sampleIndex.size();
-        qDebug() << "Fixed X-axis window set =" << adxlWindow;
-    }
-
-    //    quint64 memMB = getCurrentProcessMemoryMB();
-    //    qDebug()<<memMB<<"memory used";
-
-    //        if (memMB > 4000)
-    //        {
-    //            saveLive=false;
-    //            QMessageBox::warning(this,
-    //                                 "Memory Warning",
-    //                                 "Data saving is stopped due to memory limitation.");
-
-    //        }
-
-    //        QMutexLocker locker(&dataMutex);
-    //        pending_sampleIndex += sampleIndex;
-    //        pending_xAdxl += xAdxl;
-    //        pending_yAdxl += yAdxl;
-    //        pending_zAdxl += zAdxl;
-
-    // optionally keep full history for later export
-    if(saveLive){
-        full_xAdxl += xAdxl;
-        full_yAdxl += yAdxl;
-        full_zAdxl += zAdxl;
-    }
-
-    if (!ui->checkBox_fft->isChecked())
-    {
-        // time-domain
-        livePlot(ui->customPlot_adxl_x_live, sampleIndex, xAdxl,adxlWindow,0);
-        livePlot(ui->customPlot_adxl_y_live, sampleIndex, yAdxl,adxlWindow,0);
-        livePlot(ui->customPlot_adxl_z_live, sampleIndex, zAdxl,adxlWindow,0);
-    }
-    else
-    {
-        plotLiveFFT(xAdxl, adxlFreqL, ui->customPlot_adxl_x_live);
-        plotLiveFFT(yAdxl, adxlFreqL, ui->customPlot_adxl_y_live);
-        plotLiveFFT(zAdxl,adxlFreqL, ui->customPlot_adxl_z_live);
-    }
-
-    qDebug() << "Total ADXL samples:" << sampleIndex.size();
-}
 void MainWindow::makePacket4100InclLive(const QByteArray &rawPacket4100Incl)
 {
     QByteArray packet = rawPacket4100Incl;
@@ -3929,9 +3973,9 @@ void MainWindow::on_pushButton_openFiles_clicked()
         return;
     }
 
-    // -------------------------------
-    // Loading dialog
-    // -------------------------------
+    //------------------------------------------------
+    // Loading Dialog
+    //------------------------------------------------
 
     QDialog *loadingDialog =
             createPleaseWaitDialog(
@@ -3939,12 +3983,11 @@ void MainWindow::on_pushButton_openFiles_clicked()
 
     QFutureWatcher<CsvPlotData>
             *watcher =
-            new QFutureWatcher<
-            CsvPlotData>(this);
+            new QFutureWatcher<CsvPlotData>(
+                this);
 
     connect(watcher,
-            &QFutureWatcher<
-            CsvPlotData>::finished,
+            &QFutureWatcher<CsvPlotData>::finished,
             this,
             [=]()
     {
@@ -3953,9 +3996,9 @@ void MainWindow::on_pushButton_openFiles_clicked()
 
         watcher->deleteLater();
 
-        // -------------------------------
-        // Plot helper
-        // -------------------------------
+        //------------------------------------------------
+        // Plot Helper
+        //------------------------------------------------
 
         auto plotGraph =
                 [](QCustomPlot *plot,
@@ -4000,35 +4043,123 @@ void MainWindow::on_pushButton_openFiles_clicked()
             plot->setUpdatesEnabled(true);
 
             plot->replot(
-                        QCustomPlot::
-                        rpQueuedReplot);
+                        QCustomPlot::rpQueuedReplot);
         };
 
-        // -------------------------------
-        // Plot graphs
-        // -------------------------------
+        //------------------------------------------------
+        // ADXL #1
+        //------------------------------------------------
 
         plotGraph(
                     ui->customPlot_adxl_x,
                     data.sampleIndex,
-                    data.xLoaded);
+                    data.x1Loaded);
 
         plotGraph(
                     ui->customPlot_adxl_y,
                     data.sampleIndex,
-                    data.yLoaded);
+                    data.y1Loaded);
 
         plotGraph(
                     ui->customPlot_adxl_z,
                     data.sampleIndex,
-                    data.zLoaded);
+                    data.z1Loaded);
+
+        //------------------------------------------------
+        // ADXL #2
+        //------------------------------------------------
+
+        plotGraph(
+                    ui->customPlot_adxl_x2,
+                    data.sampleIndex,
+                    data.x2Loaded);
+
+        plotGraph(
+                    ui->customPlot_adxl_y2,
+                    data.sampleIndex,
+                    data.y2Loaded);
+
+        plotGraph(
+                    ui->customPlot_adxl_z2,
+                    data.sampleIndex,
+                    data.z2Loaded);
+
+        //------------------------------------------------
+        // Temperature
+        //------------------------------------------------
+
+        QVector<double> tempIndex;
+
+        for(int i = 0;
+            i < data.tempLoaded.size();
+            i++)
+        {
+            tempIndex.append(i + 1);
+        }
+
+        plotGraph(
+                    ui->customPlot_new_Temp,
+                    tempIndex,
+                    data.tempLoaded);
+
+        //------------------------------------------------
+        // Pressure
+        //------------------------------------------------
+
+        QVector<double> pressureIndex;
+
+        for(int i = 0;
+            i < data.pressureLoaded.size();
+            i++)
+        {
+            pressureIndex.append(i + 1);
+        }
+
+        plotGraph(
+                    ui->customPlot_new_Pressure,
+                    pressureIndex,
+                    data.pressureLoaded);
+
+        //------------------------------------------------
+        // Close Loading Dialog
+        //------------------------------------------------
 
         if(loadingDialog)
         {
             loadingDialog->close();
-            loadingDialog
-                    ->deleteLater();
+            loadingDialog->deleteLater();
         }
+
+        //------------------------------------------------
+        // Debug
+        //------------------------------------------------
+
+        qDebug() << "Loaded Samples:"
+                 << data.sampleIndex.size();
+
+        qDebug() << "Loaded X1:"
+                 << data.x1Loaded.size();
+
+        qDebug() << "Loaded Y1:"
+                 << data.y1Loaded.size();
+
+        qDebug() << "Loaded Z1:"
+                 << data.z1Loaded.size();
+
+        qDebug() << "Loaded X2:"
+                 << data.x2Loaded.size();
+
+        qDebug() << "Loaded Y2:"
+                 << data.y2Loaded.size();
+
+        qDebug() << "Loaded Z2:"
+                 << data.z2Loaded.size();
+
+        qDebug() << "Loaded Temp:"
+                 << data.tempLoaded.size();
+
+        qDebug() << "Loaded Pressure:"
+                 << data.pressureLoaded.size();
 
         QMessageBox::information(
                     this,

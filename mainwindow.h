@@ -82,13 +82,29 @@ public:
 
     void applyScrollArea();
 
+    float bytesToFloatMSB(const QByteArray &bytes)
+    {
+        if(bytes.size() < 4)
+            return 0.0f;
+
+        quint32 raw =
+                (static_cast<quint8>(bytes[3]) << 24) |
+                (static_cast<quint8>(bytes[2]) << 16) |
+                (static_cast<quint8>(bytes[1]) << 8)  |
+                 static_cast<quint8>(bytes[0]);
+
+        float value;
+        memcpy(&value, &raw, sizeof(float));
+
+        return value;
+    }
+
     void initializeAllPlots();
 
     void makePacket32UI(QList<QByteArray> &rawPacket32List);
-    void makePacket4100AdxlTempList(QList<QByteArray> &rawPacket4100AdxlList,QList<QByteArray> &rawPacketTemperatureList);
-    void makePacket4100InclList(QList<QByteArray> &rawPacket4100InclList);
+    void makePacket2048AdxlTempListPressureList(QList<QByteArray> &rawPacket4100AdxlList,
+                                                QList<QByteArray> &rawPacketTemperatureList,QList<QByteArray> &rawPacketPressureList);
 
-    void makePacket4100AdxlLive(const QByteArray &rawPacket4100Adxl);
     void makePacket4100InclLive(const QByteArray &rawPacket4100Incl);
 
 
@@ -99,9 +115,6 @@ public:
                                               const QVector<double> &zAdxl,
                                               const QVector<double> &tempIndex,
                                               const QVector<double> &temperature,
-                                              const QVector<double> &inclIndex,
-                                              const QVector<double> &inclX,
-                                              const QVector<double> &inclY,
                                               const QString &fullPath);
 
    void initializeSensorVectors();
@@ -123,7 +136,8 @@ public:
     void blinkLabel(QLabel *label,
                     int durationMs,
                     const QString &text);
-    // CSV Dumping
+
+    // CSV Dumping For New Kumar's Application
     QString createAdxlCsvPath();
 
     void startAdxlCsvSaving(
@@ -131,9 +145,21 @@ public:
 
     bool saveAdxlToCsv(
             const QVector<double> &sampleIndex,
-            const QVector<double> &xAdxl,
-            const QVector<double> &yAdxl,
-            const QVector<double> &zAdxl,
+
+            const QVector<double> &x1Adxl,
+            const QVector<double> &y1Adxl,
+            const QVector<double> &z1Adxl,
+
+            const QVector<double> &x2Adxl,
+            const QVector<double> &y2Adxl,
+            const QVector<double> &z2Adxl,
+
+            const QVector<double> &tempIndex,
+            const QVector<double> &temperature,
+
+            const QVector<double> &pressureIndex,
+            const QVector<double> &pressure,
+
             const QString &filePath);
 
 
@@ -281,15 +307,32 @@ private:
      QVector<double> finalTempIndex;
      QVector<double> finalTemperature;
 
-     // --- Inclinometer ---
-     QVector<double> finalInclIndex;
-     QVector<double> finalInclX;
-     QVector<double> finalInclY;
+     //New Code Adxl*2 code variables Start------------------------------------
+
+     QVector<double> finalSampleIndexNew;
+
+     QVector<double> finalX1AdxlNew;
+     QVector<double> finalY1AdxlNew;
+     QVector<double> finalZ1AdxlNew;
+
+     QVector<double> finalX2AdxlNew;
+     QVector<double> finalY2AdxlNew;
+     QVector<double> finalZ2AdxlNew;
+
+     QVector<double> finalTempIndexNew;
+     QVector<double> finalTemperatureNew;
+
+     QVector<double> finalPressureIndexNew;
+     QVector<double> finalPressureNew;
+
+     //New Code Adxl*2 code variables End------------------------------------
+
 
      QList<QByteArray> packet32List;
-     QList<QByteArray> packet4100AdxlList;
-     QList<QByteArray> packet4100InclList;
+     QList<QByteArray> packet2048AdxlList;
+
      QList<QByteArray> packetTemperatureList;
+     QList<QByteArray> packetPressureList;
 
      quint16 adxlFreq;
      quint16 InclinometerFreq;
@@ -369,9 +412,17 @@ private:
      struct CsvPlotData
      {
          QVector<double> sampleIndex;
-         QVector<double> xLoaded;
-         QVector<double> yLoaded;
-         QVector<double> zLoaded;
+
+         QVector<double> x1Loaded;
+         QVector<double> y1Loaded;
+         QVector<double> z1Loaded;
+
+         QVector<double> x2Loaded;
+         QVector<double> y2Loaded;
+         QVector<double> z2Loaded;
+
+         QVector<double> tempLoaded;
+         QVector<double> pressureLoaded;
      };
 
      CsvPlotData loadAdxlCsv(
