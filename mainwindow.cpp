@@ -22,7 +22,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     ui->spinBox_logTime->setToolTip("Enter value from 1 to 65535");
     ui->spinBox_threshold->setToolTip("Enter value from -200 to +200");
-    ui->spinBox_samplingfrequency->setToolTip("Enter value from 1 to 20000");
+    ui->spinBox_samplingfrequency->setToolTip("Enter value from 1 to 10000");
     ui->spinBox_Inclinometer->setToolTip("Enter value from 1 to 1000");
 
     uiUpdateTimer = new QTimer(this);
@@ -522,7 +522,7 @@ MainWindow::loadAdxlCsv(
         //------------------------------------------------
 
         if(values.size() > 7 &&
-           !values[7].trimmed().isEmpty())
+                !values[7].trimmed().isEmpty())
         {
             bool okTemp = false;
 
@@ -540,7 +540,7 @@ MainWindow::loadAdxlCsv(
         //------------------------------------------------
 
         if(values.size() > 8 &&
-           !values[8].trimmed().isEmpty())
+                !values[8].trimmed().isEmpty())
         {
             bool okPressure = false;
 
@@ -1161,12 +1161,12 @@ void MainWindow::makePacket2048AdxlTempListPressureList(
 
     auto plotGraph =
             [](QCustomPlot *plot,
-               const QVector<double> &x,
-               const QVector<double> &y)
+            const QVector<double> &x,
+            const QVector<double> &y)
     {
         if(plot->graphCount() == 0 ||
-           x.isEmpty() ||
-           y.isEmpty())
+                x.isEmpty() ||
+                y.isEmpty())
         {
             return;
         }
@@ -1579,7 +1579,7 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
 
     // Get Event Data Command msgId 0x01
     if(data.startsWith(QByteArray::fromHex("AA BB")) &&
-       data.endsWith(QByteArray::fromHex("AA BB CC DD FF")))
+            data.endsWith(QByteArray::fromHex("AA BB CC DD FF")))
     {
         int i = 2; // Skip Ultimate Header (AA BB)
 
@@ -1615,7 +1615,7 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
                 else
                 {
                     writeToNotes(
-                        "Incomplete Packet32 found.");
+                                "Incomplete Packet32 found.");
                     break;
                 }
             }
@@ -1635,7 +1635,7 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
                 if(footerPos < 0)
                 {
                     writeToNotes(
-                        "ADXL footer not found.");
+                                "ADXL footer not found.");
 
                     invalidHeaderCount++;
                     break;
@@ -1650,8 +1650,8 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
                 // FF FF FF FF FF FF Special Condition
                 // ---------------------------------------------
                 if(packet2048.contains(
-                        QByteArray::fromHex(
-                            "FF FF FF FF FF FF")))
+                            QByteArray::fromHex(
+                                "FF FF FF FF FF FF")))
                 {
                     QByteArray specialPacket =
                             packet2048;
@@ -1666,17 +1666,17 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
                             << packet2048AdxlList.size();
 
                     writeToNotes(
-                        "Consecutive FF's detected at packet [ADXL]: "
-                        + QString::number(
-                            packet2048AdxlList.size()));
+                                "Consecutive FF's detected at packet [ADXL]: "
+                                + QString::number(
+                                    packet2048AdxlList.size()));
 
                     qDebug()
                             << "fIndex:"
                             << fIndex;
 
                     writeToNotes(
-                        "fIndex (start of FFs) [ADXL]: "
-                        + QString::number(fIndex));
+                                "fIndex (start of FFs) [ADXL]: "
+                                + QString::number(fIndex));
 
                     int bytesRemoved =
                             (specialPacket.size() - fIndex) - 3;
@@ -1686,8 +1686,8 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
                             << bytesRemoved;
 
                     writeToNotes(
-                        "Removing FF bytes count [ADXL]: "
-                        + QString::number(bytesRemoved));
+                                "Removing FF bytes count [ADXL]: "
+                                + QString::number(bytesRemoved));
 
                     specialPacket.remove(
                                 fIndex,
@@ -1697,10 +1697,10 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
                                 specialPacket);
 
                     writeToNotes(
-                        "specialPacket [ADXL]: "
-                        + specialPacket
-                              .toHex(' ')
-                              .toUpper());
+                                "specialPacket [ADXL]: "
+                                + specialPacket
+                                .toHex(' ')
+                                .toUpper());
                 }
                 else
                 {
@@ -1741,7 +1741,7 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
                 else
                 {
                     writeToNotes(
-                        "ADXL packet too small for Temp/Pressure extraction.");
+                                "ADXL packet too small for Temp/Pressure extraction.");
                 }
 
 
@@ -1762,10 +1762,10 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
                         << unknownHeader.toHex();
 
                 writeToNotes(
-                    "Unknown Header: "
-                    + unknownHeader
-                          .toHex(' ')
-                          .toUpper());
+                            "Unknown Header: "
+                            + unknownHeader
+                            .toHex(' ')
+                            .toUpper());
 
                 invalidHeaderCount++;
 
@@ -1778,30 +1778,30 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
         // Summary Logs
         // -------------------------------------------------
         writeToNotes(
-            "Packet32 count: "
-            + QString::number(
-                packet32List.size()));
+                    "Packet32 count: "
+                    + QString::number(
+                        packet32List.size()));
 
 
         writeToNotes(
-            "Packet2048 ADXL count: "
-            + QString::number(
-                packet2048AdxlList.size()));
+                    "Packet2048 ADXL count: "
+                    + QString::number(
+                        packet2048AdxlList.size()));
 
         writeToNotes(
-            "Temperature samples: "
-            + QString::number(
-                packetTemperatureList.size()));
+                    "Temperature samples: "
+                    + QString::number(
+                        packetTemperatureList.size()));
 
         writeToNotes(
-            "Pressure samples: "
-            + QString::number(
-                packetPressureList.size()));
+                    "Pressure samples: "
+                    + QString::number(
+                        packetPressureList.size()));
 
         writeToNotes(
-            "Invalid headers: "
-            + QString::number(
-                invalidHeaderCount));
+                    "Invalid headers: "
+                    + QString::number(
+                        invalidHeaderCount));
 
         // -------------------------------------------------
         // UI Updates
@@ -2362,11 +2362,11 @@ void MainWindow::on_pushButton_stopPlot_clicked()
     }
 
     if (!finalAdxlIndex.isEmpty() &&
-        !finalXAdxl.isEmpty() &&
-        !finalYAdxl.isEmpty() &&
-        !finalZAdxl.isEmpty() &&
-        !finalTempIndex.isEmpty() &&
-        !finalTemperature.isEmpty())
+            !finalXAdxl.isEmpty() &&
+            !finalYAdxl.isEmpty() &&
+            !finalZAdxl.isEmpty() &&
+            !finalTempIndex.isEmpty() &&
+            !finalTemperature.isEmpty())
     {
         saveAllSensorDataToExcel(
                     finalAdxlIndex,
@@ -2723,11 +2723,12 @@ void MainWindow::on_pushButton_setTime_clicked()
 
 void MainWindow::on_pushButton_ADXLfrequency_clicked()
 {
-    responseTimer->start(2000);
-    if(ui->spinBox_samplingfrequency->value()>20000||ui->spinBox_samplingfrequency->value()<1){
-        QMessageBox::information(this,"out of Range","Enter the value between 1 and 20000");
+    if(ui->spinBox_samplingfrequency->value()>10000 || ui->spinBox_samplingfrequency->value()<1){
+        QMessageBox::information(this,"out of Range","Enter the value between 1 and 10000");
         return;
     }
+
+    responseTimer->start(2000);
     QByteArray packet=QByteArray::fromHex("535452");
     quint16 value=ui->spinBox_samplingfrequency->value();
     packet.append(static_cast<char>((value >> 8) & 0xFF));
@@ -2771,12 +2772,13 @@ void MainWindow::on_pushButton_currentParameters_clicked()
 }
 void MainWindow::on_pushButton_erase_clicked()
 {
-    responseTimer->start(2000);
     QByteArray eraseCmd=QByteArray::fromHex("535441");
     QMessageBox::StandardButton reply;
     reply = QMessageBox::question(this, "Confirm", "Do you want to Erase logs?",
                                   QMessageBox::Yes | QMessageBox::No);
-    if (reply == QMessageBox::Yes) {
+    if (reply == QMessageBox::Yes)
+    {
+        responseTimer->start(2000);
         emit sendMsgId(0x07);
         serialObj->writeData(eraseCmd);
     }
@@ -3055,13 +3057,13 @@ bool MainWindow::saveAdxlToCsv(
     //----------------------------------------------------
 
     out
-    << "Event ID,"
-    << eventId
-    << ",Start Time,"
-    << formattedStart
-    << ",End Time,"
-    << formattedEnd
-    << "\n";
+            << "Event ID,"
+            << eventId
+            << ",Start Time,"
+            << formattedStart
+            << ",End Time,"
+            << formattedEnd
+            << "\n";
 
     out << "\n";
 
@@ -3070,15 +3072,15 @@ bool MainWindow::saveAdxlToCsv(
     //----------------------------------------------------
 
     out
-    << "Sample Number,"
-    << "ADXL X1,"
-    << "ADXL Y1,"
-    << "ADXL Z1,"
-    << "ADXL X2,"
-    << "ADXL Y2,"
-    << "ADXL Z2,"
-    << "Temperature,"
-    << "Pressure\n";
+            << "Sample Number,"
+            << "ADXL X1,"
+            << "ADXL Y1,"
+            << "ADXL Z1,"
+            << "ADXL X2,"
+            << "ADXL Y2,"
+            << "ADXL Z2,"
+            << "Temperature,"
+            << "Pressure\n";
 
     //----------------------------------------------------
     // Combined Data
@@ -3092,13 +3094,13 @@ bool MainWindow::saveAdxlToCsv(
         ++i)
     {
         out
-        << sampleIndex[i] << ","
-        << x1Adxl[i] << ","
-        << y1Adxl[i] << ","
-        << z1Adxl[i] << ","
-        << x2Adxl[i] << ","
-        << y2Adxl[i] << ","
-        << z2Adxl[i] << ",";
+                << sampleIndex[i] << ","
+                << x1Adxl[i] << ","
+                << y1Adxl[i] << ","
+                << z1Adxl[i] << ","
+                << x2Adxl[i] << ","
+                << y2Adxl[i] << ","
+                << z2Adxl[i] << ",";
 
         // Temperature Column
         if(i < temperature.size())
@@ -3117,7 +3119,7 @@ bool MainWindow::saveAdxlToCsv(
         out << "\n";
 
         if(i > 0 &&
-           i % 100000 == 0)
+                i % 100000 == 0)
         {
             out.flush();
 
@@ -4002,12 +4004,12 @@ void MainWindow::on_pushButton_openFiles_clicked()
 
         auto plotGraph =
                 [](QCustomPlot *plot,
-                   const QVector<double> &x,
-                   const QVector<double> &y)
+                const QVector<double> &x,
+                const QVector<double> &y)
         {
             if(plot->graphCount() == 0 ||
-               x.isEmpty() ||
-               y.isEmpty())
+                    x.isEmpty() ||
+                    y.isEmpty())
             {
                 return;
             }
