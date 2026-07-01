@@ -328,6 +328,19 @@ private:
 
      QList<QCustomPlot*> livePlots;
 
+     // Circular Buffers
+     QVector<double> plotX;
+
+     QVector<double> plotAx100;
+     QVector<double> plotAy100;
+     QVector<double> plotAz100;
+
+     QVector<double> plotAx500;
+     QVector<double> plotAy500;
+     QVector<double> plotAz500;
+
+     quint64 writeIndex;
+
      // Live CSV Things
      QFile liveCsvFile;
 

@@ -72,3 +72,6 @@
 
 #Ver 3.4 --------------------------------------------------------------------------------------------------
 - Code refactoring happened need to change live plot effect to Oscilloscope pure effect.
+
+#Ver 3.5 --------------------------------------------------------------------------------------------------
+- Pure Oscilloscope thing is achieved but use upto 20,000 sample window don't go further that it is struggling.

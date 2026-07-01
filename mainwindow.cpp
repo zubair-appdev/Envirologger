@@ -865,11 +865,20 @@ void MainWindow::initializeAllPlots()
     ui->customPlot_adxl_x_live->addGraph();
     ui->customPlot_adxl_x_live->graph(0)->setPen(QPen(adxlColors[0],1));
 
+    ui->customPlot_adxl_x_live->addGraph();
+    ui->customPlot_adxl_x_live->graph(1)->setPen(QPen(adxlColors[0],1));
+
     ui->customPlot_adxl_y_live->addGraph();
     ui->customPlot_adxl_y_live->graph(0)->setPen(QPen(adxlColors[1],1));
 
+    ui->customPlot_adxl_y_live->addGraph();
+    ui->customPlot_adxl_y_live->graph(1)->setPen(QPen(adxlColors[1],1));
+
     ui->customPlot_adxl_z_live->addGraph();
     ui->customPlot_adxl_z_live->graph(0)->setPen(QPen(adxlColors[2],1));
+
+    ui->customPlot_adxl_z_live->addGraph();
+    ui->customPlot_adxl_z_live->graph(1)->setPen(QPen(adxlColors[2],1));
 
     // ============================================================
     // LIVE SECOND ADXL PLOTS
@@ -890,11 +899,21 @@ void MainWindow::initializeAllPlots()
     ui->customPlot_adxl_x2_live->addGraph();
     ui->customPlot_adxl_x2_live->graph(0)->setPen(QPen(adxlColors[0],1));
 
+    ui->customPlot_adxl_x2_live->addGraph();
+    ui->customPlot_adxl_x2_live->graph(1)->setPen(QPen(adxlColors[0],1));
+
     ui->customPlot_adxl_y2_live->addGraph();
     ui->customPlot_adxl_y2_live->graph(0)->setPen(QPen(adxlColors[1],1));
 
+    ui->customPlot_adxl_y2_live->addGraph();
+    ui->customPlot_adxl_y2_live->graph(1)->setPen(QPen(adxlColors[1],1));
+
     ui->customPlot_adxl_z2_live->addGraph();
     ui->customPlot_adxl_z2_live->graph(0)->setPen(QPen(adxlColors[2],1));
+
+
+    ui->customPlot_adxl_z2_live->addGraph();
+    ui->customPlot_adxl_z2_live->graph(1)->setPen(QPen(adxlColors[2],1));
 
     // ============================================================
     // LIVE TEMPERATURE
@@ -917,6 +936,31 @@ void MainWindow::initializeAllPlots()
 
     ui->customPlot_new_Pressure_live->addGraph();
     ui->customPlot_new_Pressure_live->graph(0)->setPen(QPen(pressureColor,1));
+
+
+    //-------------------------------------------------------
+    // Live Circular Buffer Initialization
+    //-------------------------------------------------------
+
+    writeIndex = 0;
+
+    // X-axis
+    plotX.resize(LIVE_WINDOW);
+
+    for(quint64 i = 0; i < LIVE_WINDOW; ++i)
+    {
+        plotX[i] = i;
+    }
+
+    // ADXL Buffers
+    plotAx100.fill(0.0, LIVE_WINDOW);
+    plotAy100.fill(0.0, LIVE_WINDOW);
+    plotAz100.fill(0.0, LIVE_WINDOW);
+
+    plotAx500.fill(0.0, LIVE_WINDOW);
+    plotAy500.fill(0.0, LIVE_WINDOW);
+    plotAz500.fill(0.0, LIVE_WINDOW);
+
 }
 
 void MainWindow::makePacket32UI(QList<QByteArray> &rawPacket32List)
@@ -2794,16 +2838,23 @@ void MainWindow::processLivePacket(const QByteArray &payload)
         liveCsvData.z2Loaded.append(z2f);
 
         //-------------------------------------------------------
-        // Live Plot
+        // Update Circular Buffer
         //-------------------------------------------------------
 
-        ui->customPlot_adxl_x_live->graph(0)->addData(liveSampleNumber,x1f);
-        ui->customPlot_adxl_y_live->graph(0)->addData(liveSampleNumber,y1f);
-        ui->customPlot_adxl_z_live->graph(0)->addData(liveSampleNumber,z1f);
+        plotAx100[writeIndex] = x1f;
+        plotAy100[writeIndex] = y1f;
+        plotAz100[writeIndex] = z1f;
 
-        ui->customPlot_adxl_x2_live->graph(0)->addData(liveSampleNumber,x2f);
-        ui->customPlot_adxl_y2_live->graph(0)->addData(liveSampleNumber,y2f);
-        ui->customPlot_adxl_z2_live->graph(0)->addData(liveSampleNumber,z2f);
+        plotAx500[writeIndex] = x2f;
+        plotAy500[writeIndex] = y2f;
+        plotAz500[writeIndex] = z2f;
+
+        writeIndex++;
+
+        if(writeIndex >= LIVE_WINDOW)
+        {
+            writeIndex = 0;
+        }
     }
 
     //-------------------------------------------------------
@@ -2846,23 +2897,8 @@ void MainWindow::processLivePacket(const QByteArray &payload)
     }
 
     //-------------------------------------------------------
-    // Remove old samples
+    // Remove old samples for pressure and temperature
     //-------------------------------------------------------
-
-    quint64 lower = 0;
-
-    if(liveSampleNumber > LIVE_WINDOW)
-    {
-        lower = liveSampleNumber - LIVE_WINDOW;
-
-        ui->customPlot_adxl_x_live->graph(0)->data()->removeBefore(lower);
-        ui->customPlot_adxl_y_live->graph(0)->data()->removeBefore(lower);
-        ui->customPlot_adxl_z_live->graph(0)->data()->removeBefore(lower);
-
-        ui->customPlot_adxl_x2_live->graph(0)->data()->removeBefore(lower);
-        ui->customPlot_adxl_y2_live->graph(0)->data()->removeBefore(lower);
-        ui->customPlot_adxl_z2_live->graph(0)->data()->removeBefore(lower);
-    }
 
     if(liveTempSampleNumber > LIVE_WINDOW)
     {
@@ -2883,16 +2919,8 @@ void MainWindow::processLivePacket(const QByteArray &payload)
     }
 
     //-------------------------------------------------------
-    // Move X Axis
+    // Move X Axis for temperature and pressure
     //-------------------------------------------------------
-
-    for(auto plot : livePlots)
-    {
-        plot->xAxis->setRange(
-                    liveSampleNumber,
-                    LIVE_WINDOW,
-                    Qt::AlignRight);
-    }
 
     ui->customPlot_new_Temp_live->xAxis->setRange(
                 liveTempSampleNumber,
@@ -2908,12 +2936,70 @@ void MainWindow::processLivePacket(const QByteArray &payload)
     // Refresh
     //-------------------------------------------------------
 
-    if(liveSampleNumber % 1 == 0)
+    //---------------------- Ax100 ----------------------
+
+    ui->customPlot_adxl_x_live->graph(0)->setData(
+                plotX.mid(writeIndex),
+                plotAx100.mid(writeIndex));
+
+    ui->customPlot_adxl_x_live->graph(1)->setData(
+                plotX.mid(0, writeIndex),
+                plotAx100.mid(0, writeIndex));
+
+    //---------------------- Ay100 ----------------------
+
+    ui->customPlot_adxl_y_live->graph(0)->setData(
+                plotX.mid(writeIndex),
+                plotAy100.mid(writeIndex));
+
+    ui->customPlot_adxl_y_live->graph(1)->setData(
+                plotX.mid(0, writeIndex),
+                plotAy100.mid(0, writeIndex));
+
+    //---------------------- Az100 ----------------------
+
+    ui->customPlot_adxl_z_live->graph(0)->setData(
+                plotX.mid(writeIndex),
+                plotAz100.mid(writeIndex));
+
+    ui->customPlot_adxl_z_live->graph(1)->setData(
+                plotX.mid(0, writeIndex),
+                plotAz100.mid(0, writeIndex));
+
+    //---------------------- Ax500 ----------------------
+
+    ui->customPlot_adxl_x2_live->graph(0)->setData(
+                plotX.mid(writeIndex),
+                plotAx500.mid(writeIndex));
+
+    ui->customPlot_adxl_x2_live->graph(1)->setData(
+                plotX.mid(0, writeIndex),
+                plotAx500.mid(0, writeIndex));
+
+    //---------------------- Ay500 ----------------------
+
+    ui->customPlot_adxl_y2_live->graph(0)->setData(
+                plotX.mid(writeIndex),
+                plotAy500.mid(writeIndex));
+
+    ui->customPlot_adxl_y2_live->graph(1)->setData(
+                plotX.mid(0, writeIndex),
+                plotAy500.mid(0, writeIndex));
+
+    //---------------------- Az500 ----------------------
+
+    ui->customPlot_adxl_z2_live->graph(0)->setData(
+                plotX.mid(writeIndex),
+                plotAz500.mid(writeIndex));
+
+    ui->customPlot_adxl_z2_live->graph(1)->setData(
+                plotX.mid(0, writeIndex),
+                plotAz500.mid(0, writeIndex));
+
+
+    for(auto plot : livePlots)
     {
-        for(auto plot : livePlots)
-        {
-            plot->replot(QCustomPlot::rpQueuedReplot);
-        }
+        plot->replot(QCustomPlot::rpQueuedReplot);
     }
 
     //-------------------------------------------------------
