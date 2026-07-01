@@ -239,23 +239,8 @@ void serialPortHandler::readData()
             executeWriteToNotes("Required  bytes with header AA BB and footer 65 6E 64 FF EF EE, bytes Received bytes: "+QString::number(buffer.size()));
         }
     }
-    else if(msgId == 0x04)
+    else if(msgId == 0x05)
     {
-        qDebug() << "" <<hex<<msgId;
-
-        if(buffer == QByteArray::fromHex("53 54 46"))
-        {
-            powerId = 0x04;
-            ResponseData = buffer;
-            buffer.clear();
-            executeWriteToNotes("Stop Plot cmd received bytes: "+ResponseData.toHex(' ').toUpper());
-        }
-        else
-        {
-            executeWriteToNotes("Required 3, bytes Received bytes: "+QString::number(buffer.size()));
-        }
-    }
-    else if(msgId == 0x05){
         qDebug() << "" <<hex<<msgId;
 
         if(buffer.startsWith(QByteArray::fromHex("53 54 54")))
@@ -271,29 +256,35 @@ void serialPortHandler::readData()
         }
 
     }
-    else if(msgId ==0x06){
-        qDebug() << "" <<hex<<msgId;
-        if(buffer.startsWith(QByteArray::fromHex("53 54 55"))){
+    else if(msgId ==0x06)
+    {
+        qDebug()<<hex<<msgId;
+        if(buffer.startsWith(QByteArray::fromHex("AA BB")) &&
+           buffer.endsWith(QByteArray::fromHex("EE FF")))
+        {
             powerId = 0x06;
             ResponseData = buffer;
             buffer.clear();
-            executeWriteToNotes("System on Data cmd received bytes: "+ResponseData.toHex(' ').toUpper());
+            executeWriteToNotes("Current Parameters cmd received bytes: "+ResponseData.toHex(' ').toUpper());
 
         }
         else{
-            executeWriteToNotes("Required 3, bytes Received bytes: "+QString::number(buffer.size()));
+            executeWriteToNotes("Required 8, bytes Received bytes: "+QString::number(buffer.size()));
         }
 
     }
-    else if(msgId==0x07){
+    else if(msgId==0x07)
+    {
         qDebug()<<"msg Id:"<<hex<<msgId;
-        if(buffer.startsWith(QByteArray::fromHex("54 53 41 43 4C"))){
+        if(buffer.startsWith(QByteArray::fromHex("54 53 41 43 4C")))
+        {
             powerId=0x07;
             ResponseData=buffer;
             buffer.clear();
             executeWriteToNotes("Erase command Received bytes:"+ResponseData.toHex(' ').toUpper());
         }
-        else if(buffer==(QByteArray::fromHex("54 53 44 4F 4E 45"))){
+        else if(buffer==(QByteArray::fromHex("54 53 44 4F 4E 45")))
+        {
             powerId=0x07;
             ResponseData=buffer;
             buffer.clear();
@@ -301,38 +292,16 @@ void serialPortHandler::readData()
 
         }
     }
-    else if(msgId==0x08){
-        qDebug()<<"msg Id:"<<hex<<msgId;
-        if(buffer.startsWith(QByteArray::fromHex("53 54 47"))){
-            powerId=0x08;
-            ResponseData=buffer;
-            buffer.clear();
-            executeWriteToNotes("power on command Received bytes:"+ResponseData.toHex(' ').toUpper());
-        }
 
-    }
-    else if(msgId==0x09){
+    else if(msgId==0x10)
+    {
         qDebug()<<"msg Id:"<<hex<<msgId;
-        if(buffer.startsWith(QByteArray::fromHex("53 54 48"))){
-            powerId=0x09;
-            ResponseData=buffer;
-            buffer.clear();
-            executeWriteToNotes("power off command Received bytes:"+ResponseData.toHex(' ').toUpper());
-        }
-    }
-    else if(msgId==0x10){
-        qDebug()<<"msg Id:"<<hex<<msgId;
-        if(buffer.startsWith(QByteArray::fromHex("53 54 44"))){
+        if(buffer.startsWith(QByteArray::fromHex("53 54 44")))
+        {
             powerId=0x10;
             ResponseData=buffer;
             buffer.clear();
             executeWriteToNotes("log Time Response Received bytes:"+ResponseData.toHex(' ').toUpper());
-        }
-        else if(buffer.startsWith(QByteArray::fromHex("53 54 51"))){
-            powerId=0x10;
-            ResponseData=buffer;
-            buffer.clear();
-            executeWriteToNotes("Threshold Response Received bytes:"+ResponseData.toHex(' ').toUpper());
         }
         else if(buffer.startsWith(QByteArray::fromHex("53 54 49"))){
             powerId=0x10;
@@ -345,12 +314,6 @@ void serialPortHandler::readData()
             ResponseData=buffer;
             buffer.clear();
             executeWriteToNotes("ADXL Sampling frequency Response Received bytes:"+ResponseData.toHex(' ').toUpper());
-        }
-        else if(buffer.startsWith(QByteArray::fromHex("53 54 53"))){
-            powerId=0x10;
-            ResponseData=buffer;
-            buffer.clear();
-            executeWriteToNotes("Inclinometer frequency Response Received bytes:"+ResponseData.toHex(' ').toUpper());
         }
     }
     else if(msgId == 0x11)
@@ -419,115 +382,9 @@ void serialPortHandler::readData()
             }
         }
     }
-    else if(msgId==0x12)
-    {
-        if (buffer.isEmpty())
-            return;
-        const QByteArray liveCheck=QByteArray::fromHex("53 54 56");
-        const QByteArray START_LOG_INIT = QByteArray::fromHex("54 53 41 43 4B");
-        const QByteArray START_LOG_END  = QByteArray::fromHex("54 53 50");
-
-        const QByteArray LIVE_HEADER = QByteArray::fromHex("AA BB");
-        const QByteArray LIVE_FOOTER = QByteArray::fromHex("FF FF");
-
-        const QByteArray ADXL_HEADER = QByteArray::fromHex("CC DD FF");
-        const QByteArray ADXL_FOOTER = QByteArray::fromHex("EE FF");
-
-        const QByteArray INCL_HEADER = QByteArray::fromHex("EE FF FF");
-        const QByteArray INCL_FOOTER = QByteArray::fromHex("CC DD");
-
-        // ---------------- START LOG INIT ----------------
-        if (buffer.startsWith(liveCheck))
-        {
-            ResponseData = liveCheck;
-            buffer.remove(0, liveCheck.size());
-
-            executeWriteToNotes("Start Log Initial cmd received");
-
-        }
-
-        else if (buffer.startsWith(START_LOG_INIT))
-        {
-            ResponseData = START_LOG_INIT;
-            buffer.remove(0, START_LOG_INIT.size());
-            powerId = 0x02;
-
-            executeWriteToNotes("Start Log Initial cmd received");
-
-        }
-
-        // ---------------- START LOG END ----------------
-        else if (buffer.startsWith(START_LOG_END))
-        {
-            ResponseData = START_LOG_END;
-            buffer.remove(0, START_LOG_END.size());
-            powerId = 0x02;
-
-            executeWriteToNotes("Start Log End cmd received");
-
-        }
-
-        // ---------------- LIVE FREQ PACKET ----------------
-        else if (buffer.startsWith(LIVE_HEADER))
-        {
-            int footerPos = buffer.indexOf(LIVE_FOOTER, LIVE_HEADER.size());
-            if (footerPos < 0) return;   // WAIT FOR FULL PACKET
-
-            int packetSize = footerPos + LIVE_FOOTER.size();
-            ResponseData = buffer.left(packetSize);
-            buffer.remove(0, packetSize);
-            powerId = 0x13;
-
-            executeWriteToNotes("Live Frequency Packet: size = "
-                                + QString::number(ResponseData.size()));
-
-
-        }
-
-        // ---------------- ADXL PACKET ----------------
-        else if (buffer.startsWith(ADXL_HEADER))
-        {
-            int footerPos = buffer.indexOf(ADXL_FOOTER, ADXL_HEADER.size());
-            if (footerPos < 0) return;  // WAIT FOR FULL PACKET
-
-            int packetSize = footerPos + ADXL_FOOTER.size();
-            ResponseData = buffer.left(packetSize);
-            buffer.remove(0, packetSize);
-            adxlPackets++;
-            powerId = 0x13;
-
-            executeWriteToNotes("ADXL Packet: size = "
-                                + QString::number(ResponseData.size()));
-
-
-        }
-
-        // ---------------- INCL PACKET ----------------
-        else if (buffer.startsWith(INCL_HEADER))
-        {
-            int footerPos = buffer.indexOf(INCL_FOOTER, INCL_HEADER.size());
-            if (footerPos < 0) return;  // WAIT FOR FULL PACKET
-
-            int packetSize = footerPos + INCL_FOOTER.size();
-            ResponseData = buffer.left(packetSize);
-            buffer.remove(0, packetSize);
-            inclPackets++;
-            powerId = 0x13;
-
-            executeWriteToNotes("Incl Packet: size = "
-                                + QString::number(ResponseData.size()));
-
-
-        }
-        else{
-            executeWriteToNotes("The Packet:"
-                                + buffer.toHex(' ').toUpper());
-            executeWriteToNotes("Live Data with Invalid Header");
-            buffer.clear();
-        }
-    }
     else if(msgId == 0x14)
     {
+        // Start Live Plot
         constexpr int HeaderSize  = 3;
         constexpr int PayloadSize = 2048;
         constexpr int FooterSize  = 3;
@@ -588,12 +445,6 @@ void serialPortHandler::readData()
     }
         break;
 
-    case 0x04:
-    {
-        emit guiDisplay(ResponseData);
-    }
-        break;
-
     case 0x05:
     {
         emit guiDisplay(ResponseData);
@@ -602,7 +453,7 @@ void serialPortHandler::readData()
 
     case 0x06:
     {
-        emit guiDisplay(ResponseData);
+        emit guiDisplay("PARAM"+ResponseData);
     }
         break;
 
@@ -612,21 +463,15 @@ void serialPortHandler::readData()
     }
         break;
 
-    case 0x08:
-    {
-        emit guiDisplay(ResponseData);
-    }
-        break;
-
-    case 0x09:
-    {
-        emit guiDisplay(ResponseData);
-    }
-        break;
-
     case 0x10:
     {
         emit guiDisplay(ResponseData);
+    }
+        break;
+
+    case 0x11:
+    {
+        // do nothing : stop plot is happening
     }
         break;
 

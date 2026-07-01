@@ -69,3 +69,6 @@
 
 #Ver 3.3 ---------------------------------------------------------------------------------------------------
 - Live plot And Storing live data completed for DSVDL.
+
+#Ver 3.4 --------------------------------------------------------------------------------------------------
+- Code refactoring happened need to change live plot effect to Oscilloscope pure effect.

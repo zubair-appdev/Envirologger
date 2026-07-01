@@ -107,26 +107,16 @@ public:
 
 
 
-    bool saveAllSensorDataToExcel(const QVector<double> &adxlIndex,
-                                              const QVector<double> &xAdxl,
-                                              const QVector<double> &yAdxl,
-                                              const QVector<double> &zAdxl,
-                                              const QVector<double> &tempIndex,
-                                              const QVector<double> &temperature,
-                                              const QString &fullPath);
-
-   void initializeSensorVectors();
-
    // FFT helpers as class member functions
-   void computeAndPlotFFT(const QVector<double>& signal,
-                          double Fs,
-                          QCustomPlot *plot);
+    void computeAndPlotFFT(const QVector<double>& signal,
+                           double Fs,
+                           QCustomPlot *plot);
 
-   void on_pushButton_clearPoints_fft_clicked();
+    void on_pushButton_clearPoints_fft_clicked();
+
     void on_pushButton_fitToScreen_fft_clicked();
-    void removeDC(QVector<double> &x);
 
-    void lpf_secondOrder(double xn, double yn, double zn);
+    void removeDC(QVector<double> &x);
 
     void blinkLabel(QLabel *label,
                     int durationMs,
@@ -191,8 +181,6 @@ private slots:
 
         void on_pushButton_getLogEvents_clicked();
 
-        void on_pushButton_stopPlot_clicked();
-
         void on_pushButton_enlargePlot_clicked();
 
         void on_pushButton_fitToScreen_clicked();
@@ -203,54 +191,31 @@ private slots:
 
         void on_pushButton_clearPlots_clicked();
 
-
-       // void on_tabWidget_currentChanged(int index);
-
         void on_pushButton_logTime_clicked();
-
-        void on_pushButton_setthreshold_clicked();
 
         void on_pushButton_setTime_clicked();
 
         void on_pushButton_ADXLfrequency_clicked();
 
-        void on_pushButton_inclinometerFrequency_clicked();
-
         void on_pushButton_remainingLogs_clicked();
-
-        void on_pushButton_on_clicked();
-
-       // void on_pushButton_off_clicked();
 
         void blinkWidget(QWidget *w);
 
         void on_pushButton_currentParameters_clicked();
 
-        void livePlot(QCustomPlot *plot,
-                      const QVector<double> &xValues,
-                      const QVector<double> &yValues,
-                      int Window,int graphIndex);
-
         //fft functions
-
         void applyHanning(QVector<double> &signal);
+
         void performFFT(const QVector<double> &input,
                         QVector<double> &magnitude,
                         QVector<double> &freqAxis,
                         double sampleRate);
 
        void setupFFTPlot(QCustomPlot *plot, const QString &xLabel);
+
        void on_pushButton_erase_clicked();
 
-
        void on_pushButton_stopLivePlot_clicked();
-       //void onUiUpdateTimer();
-
-       void saveLiveData(const QVector<double> &xAdxl,
-                                               const QVector<double> &yAdxl,
-                                               const QVector<double> &zAdxl,
-                                               const QVector<double> &inclX,
-                                               const QVector<double> &inclY);
        
        void on_pushButton_startLive_clicked();
 
@@ -266,6 +231,7 @@ private:
     Ui::MainWindow *ui;
     serialPortHandler *serialObj;
     QTimer timer;
+
     QCustomPlot *fftPlot;
     QList<QCPItemTracer*> fftTracers;
     QList<QCPItemText*>   fftLabels;
@@ -290,17 +256,9 @@ private:
      QDialog *dlg = nullptr;
 
      QDialog *dlgPlot = nullptr;
+
      QDialog *eraseDlg=nullptr;
 
-     // --- ADXL ---
-     QVector<double> finalAdxlIndex;
-     QVector<double> finalXAdxl;
-     QVector<double> finalYAdxl;
-     QVector<double> finalZAdxl;
-
-     // --- Temperature ---
-     QVector<double> finalTempIndex;
-     QVector<double> finalTemperature;
 
      //New Code Adxl*2 code variables Start------------------------------------
 
@@ -334,71 +292,6 @@ private:
      quint16 eventId;
      QString formattedStart;
      QString formattedEnd;
-
-     // threading / buffering / UI-timer
-     QTimer *uiUpdateTimer = nullptr;
-     QMutex dataMutex;
-
-     // Pending buffers filled by packet parser (producer)
-     QVector<double> pending_sampleIndex;
-     QVector<double> pending_xAdxl;
-     QVector<double> pending_yAdxl;
-     QVector<double> pending_zAdxl;
-
-     // Full-history storage 
-     QVector<double> full_xAdxl;
-     QVector<double> full_yAdxl;
-     QVector<double> full_zAdxl;
-     
-     QVector<double> fullInclXL;
-     QVector<double> fullInclYL;
-
-     // flags and tuning
-     int uiUpdateIntervalMs =33;
-
-     quint16 adxlFreqL;
-     quint16 inclFreqL;
-
-     int adxlWindow = -1;
-     int inclWindow = -1;
-
-
-     const int MAX_EXCEL_ROWS = 1048576;
-     const int DATA_START_ROW = 4;
-
-     const double b0 = 0.09763107;
-     const double b1 = 0.19526215;
-     const double b2 = 0.09763107;
-     const double a1 = -0.94280904;
-     const double a2 = 0.33333333;
-
-     double x_0 = 0.0;
-     double x_1 = 0.0;
-     double x_2 = 0.0;
-
-     double x_y_0 = 0.0;
-     double x_y_1 = 0.0;
-     double x_y_2 = 0.0;
-
-     double y_0 = 0.0;
-     double y_1 = 0.0;
-     double y_2 = 0.0;
-
-     double y_y_0 = 0.0;
-     double y_y_1 = 0.0;
-     double y_y_2 = 0.0;
-
-     double z_0 = 0.0;
-     double z_1 = 0.0;
-     double z_2 = 0.0;
-
-     double z_y_0 = 0.0;
-     double z_y_1 = 0.0;
-     double z_y_2 = 0.0;
-
-     QVector<double> xFiltered;
-     QVector<double> yFiltered;
-     QVector<double> zFiltered;
 
      // CSV load files
      struct CsvPlotData
@@ -447,6 +340,7 @@ private:
      bool liveCsvStarted = false;
 
      double liveSamplePeriodUS = 1.0;
+
 
 };  
 #endif // MAINWINDOW_H
