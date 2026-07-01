@@ -105,8 +105,6 @@ public:
     void makePacket2048AdxlTempListPressureList(QList<QByteArray> &rawPacket4100AdxlList,
                                                 QList<QByteArray> &rawPacketTemperatureList,QList<QByteArray> &rawPacketPressureList);
 
-    void makePacket4100InclLive(const QByteArray &rawPacket4100Incl);
-
 
 
     bool saveAllSensorDataToExcel(const QVector<double> &adxlIndex,
@@ -123,9 +121,6 @@ public:
    void computeAndPlotFFT(const QVector<double>& signal,
                           double Fs,
                           QCustomPlot *plot);
-   void plotLiveFFT(const QVector<double>& signal,
-                                double Fs,
-                                QCustomPlot *plot);
 
    void on_pushButton_clearPoints_fft_clicked();
     void on_pushButton_fitToScreen_fft_clicked();
@@ -138,7 +133,7 @@ public:
                     const QString &text);
 
     // CSV Dumping For New Kumar's Application
-    QString createAdxlCsvPath();
+    QString createAdxlCsvPath(bool live = false);
 
     void startAdxlCsvSaving(
             std::function<void()> onFinished);
@@ -162,6 +157,18 @@ public:
 
             const QString &filePath);
 
+    //Live plotting functions
+    void processLivePacket(const QByteArray &payload);
+
+    // Live CSV member functions
+    void startLiveCsv();
+
+    void appendLiveCsv();
+
+    void finishLiveCsv();
+
+    void clearLiveCsvBuffer();
+
 
 private slots:
         void onPortSelected(const QString &portName);
@@ -169,8 +176,6 @@ private slots:
         void portStatus(const QString&);
 
         void showGuiData(const QByteArray &byteArrayData);
-
-        void dataProcessing(const QByteArray &byteArrayData);
 
         //response time handling
 
@@ -237,9 +242,6 @@ private slots:
        void setupFFTPlot(QCustomPlot *plot, const QString &xLabel);
        void on_pushButton_erase_clicked();
 
-       void on_checkBox_fft_stateChanged(int arg1);
-
-       void on_checkBox_livePlot_stateChanged(int arg1);
 
        void on_pushButton_stopLivePlot_clicked();
        //void onUiUpdateTimer();
@@ -250,10 +252,7 @@ private slots:
                                                const QVector<double> &inclX,
                                                const QVector<double> &inclY);
        
-       void on_pushButton_saveLive_clicked();
-
        void on_pushButton_startLive_clicked();
-
 
        void on_pushButton_fitToScreenLive_clicked();
 
@@ -261,7 +260,6 @@ private slots:
 
 signals:
     void sendMsgId(quint8 id);
-    void memoryWarning();
 
 
 private:
@@ -271,7 +269,6 @@ private:
     QCustomPlot *fftPlot;
     QList<QCPItemTracer*> fftTracers;
     QList<QCPItemText*>   fftLabels;
-    QTimer *saveLimitTimer;
 
 
     //blinkLabel timers
@@ -294,8 +291,6 @@ private:
 
      QDialog *dlgPlot = nullptr;
      QDialog *eraseDlg=nullptr;
-
-      bool saveLive=false;
 
      // --- ADXL ---
      QVector<double> finalAdxlIndex;
@@ -359,7 +354,6 @@ private:
      QVector<double> fullInclYL;
 
      // flags and tuning
-     bool livePlotEnabled;   // controlled by your livePlot checkbox
      int uiUpdateIntervalMs =33;
 
      quint16 adxlFreqL;
@@ -367,9 +361,7 @@ private:
 
      int adxlWindow = -1;
      int inclWindow = -1;
-     double maxPeak_x = 0.0;
-     double maxPeak_y = 0.0;
-     double maxPeak_z = 0.0;
+
 
      const int MAX_EXCEL_ROWS = 1048576;
      const int DATA_START_ROW = 4;
@@ -427,5 +419,34 @@ private:
 
      CsvPlotData loadAdxlCsv(
              const QString &filePath);
+
+     // Live Plot Variables
+     quint64 liveSampleNumber = 0;
+
+     quint64 liveTempSampleNumber = 0;
+
+     quint64 livePressureSampleNumber = 0;
+
+     quint64 LIVE_WINDOW = 6000;
+
+     float adxl100Range = 100.0;
+     float adxl500Range = 500.0;
+     float pressureRange = 2000.0;
+
+     QList<QCustomPlot*> livePlots;
+
+     // Live CSV Things
+     QFile liveCsvFile;
+
+     QTextStream liveCsvStream;
+
+     QString liveCsvPath;
+
+     CsvPlotData liveCsvData;
+
+     bool liveCsvStarted = false;
+
+     double liveSamplePeriodUS = 1.0;
+
 };  
 #endif // MAINWINDOW_H
