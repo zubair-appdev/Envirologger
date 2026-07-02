@@ -75,3 +75,6 @@
 
 #Ver 3.5 --------------------------------------------------------------------------------------------------
 - Pure Oscilloscope thing is achieved but use upto 20,000 sample window don't go further that it is struggling.
+
+#Ver 3.6 ------------------------------------------------------------------------------------------------
+- Peak implementation and live plot single graph source and display buffer implemented.

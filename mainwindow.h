@@ -159,6 +159,11 @@ public:
 
     void clearLiveCsvBuffer();
 
+    void updateDisplayBuffer(
+            const QVector<double> &source,
+            QVector<double> &display,
+            int currentWriteIndex);
+
 
 private slots:
         void onPortSelected(const QString &portName);
@@ -191,12 +196,6 @@ private slots:
 
         void on_pushButton_clearPlots_clicked();
 
-        void on_pushButton_logTime_clicked();
-
-        void on_pushButton_setTime_clicked();
-
-        void on_pushButton_ADXLfrequency_clicked();
-
         void on_pushButton_remainingLogs_clicked();
 
         void blinkWidget(QWidget *w);
@@ -222,6 +221,8 @@ private slots:
        void on_pushButton_fitToScreenLive_clicked();
 
        void on_pushButton_openFiles_clicked();
+
+       void on_pushButton_setCurrentParameters_clicked();
 
 signals:
     void sendMsgId(quint8 id);
@@ -287,8 +288,6 @@ private:
      QList<QByteArray> packetTemperatureList;
      QList<QByteArray> packetPressureList;
 
-     quint16 adxlFreq;
-     quint16 InclinometerFreq;
      quint16 eventId;
      QString formattedStart;
      QString formattedEnd;
@@ -318,13 +317,15 @@ private:
 
      quint64 liveTempSampleNumber = 0;
 
-     quint64 livePressureSampleNumber = 0;
-
      quint64 LIVE_WINDOW = 6000;
 
-     float adxl100Range = 100.0;
-     float adxl500Range = 500.0;
-     float pressureRange = 2000.0;
+     float adxl100RangeMin = -100.0;
+     float adxl500RangeMin = -500.0;
+     float pressureRangeMin = 0;
+
+     float adxl100RangeMax = 100.0;
+     float adxl500RangeMax = 500.0;
+     float pressureRangeMax = 2000.0;
 
      QList<QCustomPlot*> livePlots;
 
@@ -339,7 +340,19 @@ private:
      QVector<double> plotAy500;
      QVector<double> plotAz500;
 
+     QVector<double> displayAx100;
+     QVector<double> displayAy100;
+     QVector<double> displayAz100;
+
+     QVector<double> displayAx500;
+     QVector<double> displayAy500;
+     QVector<double> displayAz500;
+
      quint64 writeIndex;
+
+     QVector<double> plotPressure;
+     QVector<double> displayPressure;
+     quint64 pressureWriteIndex;
 
      // Live CSV Things
      QFile liveCsvFile;
@@ -353,6 +366,17 @@ private:
      bool liveCsvStarted = false;
 
      double liveSamplePeriodUS = 1.0;
+
+     // For Peak Detection
+     double peakAx100 = std::numeric_limits<double>::lowest();
+     double peakAy100 = std::numeric_limits<double>::lowest();
+     double peakAz100 = std::numeric_limits<double>::lowest();
+
+     double peakAx500 = std::numeric_limits<double>::lowest();
+     double peakAy500 = std::numeric_limits<double>::lowest();
+     double peakAz500 = std::numeric_limits<double>::lowest();
+
+     double peakPressure = std::numeric_limits<double>::lowest();
 
 
 };  

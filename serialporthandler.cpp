@@ -234,6 +234,12 @@ void serialPortHandler::readData()
             buffer.clear();
             executeWriteToNotes("Get Log Events cmd received bytes: "+ResponseData.toHex(' ').toUpper());
         }
+        else if(buffer == QByteArray::fromHex(
+                    "65 6E 64 FF EF EE"))
+        {
+            powerId = 0x03;
+            emit guiDisplay("NO_EVENTS");
+        }
         else
         {
             executeWriteToNotes("Required  bytes with header AA BB and footer 65 6E 64 FF EF EE, bytes Received bytes: "+QString::number(buffer.size()));
@@ -269,7 +275,7 @@ void serialPortHandler::readData()
 
         }
         else{
-            executeWriteToNotes("Required 8, bytes Received bytes: "+QString::number(buffer.size()));
+            executeWriteToNotes("Required 16, bytes Received bytes: "+QString::number(buffer.size()));
         }
 
     }
@@ -291,29 +297,27 @@ void serialPortHandler::readData()
             executeWriteToNotes("Erase command Received bytes:"+ResponseData.toHex(' ').toUpper());
 
         }
+        else if(buffer == QByteArray::fromHex("4E 4F 5F 65 76 65 6E 74 73"))
+        {
+            powerId=0x07;
+            emit guiDisplay("NO_ERASE");
+        }
     }
 
     else if(msgId==0x10)
     {
         qDebug()<<"msg Id:"<<hex<<msgId;
-        if(buffer.startsWith(QByteArray::fromHex("53 54 44")))
+        if(buffer.startsWith("ACK_1"))
         {
             powerId=0x10;
-            ResponseData=buffer;
+            ResponseData = buffer;
+            emit guiDisplay(ResponseData);
             buffer.clear();
-            executeWriteToNotes("log Time Response Received bytes:"+ResponseData.toHex(' ').toUpper());
+            executeWriteToNotes("Set Paramters Response Received bytes:"+ResponseData.toHex(' ').toUpper());
         }
-        else if(buffer.startsWith(QByteArray::fromHex("53 54 49"))){
-            powerId=0x10;
-            ResponseData=buffer;
-            buffer.clear();
-            executeWriteToNotes("Set Time Response Received bytes:"+ResponseData.toHex(' ').toUpper());
-        }
-        else if(buffer.startsWith(QByteArray::fromHex("53 54 52"))){
-            powerId=0x10;
-            ResponseData=buffer;
-            buffer.clear();
-            executeWriteToNotes("ADXL Sampling frequency Response Received bytes:"+ResponseData.toHex(' ').toUpper());
+        else
+        {
+            executeWriteToNotes("Required 5, bytes Received bytes: "+QString::number(buffer.size()));
         }
     }
     else if(msgId == 0x11)
@@ -465,7 +469,7 @@ void serialPortHandler::readData()
 
     case 0x10:
     {
-        emit guiDisplay(ResponseData);
+        // do nothing
     }
         break;
 

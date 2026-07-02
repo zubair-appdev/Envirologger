@@ -12,7 +12,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     serialObj = new serialPortHandler(this);
 
-    ui->dateTimeEdit->setDateTime(QDateTime(QDate(2025, 1, 1),
+    ui->dateTimeEdit->setDateTime(QDateTime(QDate(2026, 7, 1),
                                             QTime(0, 0, 0)));
 
     ui->spinBox_logTime->setRange(INT_MIN, INT_MAX);
@@ -669,23 +669,37 @@ void MainWindow::initializeAllPlots()
     QColor tempColor(255, 255, 100);
     QColor pressureColor(0, 255, 220);
 
-    QString adxlFreqLabel = QString("Time (1 = %1)").arg("N/A");
+    int samplingFreq = ui->spinBox_samplingfrequency->value();
+
+    QString adxlFreqLabel;
+
+    if (samplingFreq > 0)
+    {
+        int samplePeriodUS = 1000000 / samplingFreq;
+
+        adxlFreqLabel = QString("Sample Number (1 Sample = %1 µs)")
+                            .arg(samplePeriodUS);
+    }
+    else
+    {
+        adxlFreqLabel = "Sample Number";
+    }
 
     // ============================================================
     // ADXL PLOTS
     // ============================================================
 
     setupPlot(ui->customPlot_adxl_x,
-              QString("Ax_100 %1").arg(adxlFreqLabel),
-              "Voltage (g)");
+              QString("%1").arg(adxlFreqLabel),
+              "Ax_100 (g)");
 
     setupPlot(ui->customPlot_adxl_y,
-              QString("Ay_100 %1").arg(adxlFreqLabel),
-              "Voltage (g)");
+              QString("%1").arg(adxlFreqLabel),
+              "Ay_100  (g)");
 
     setupPlot(ui->customPlot_adxl_z,
-              QString("Az_100 %1").arg(adxlFreqLabel),
-              "Voltage (g)");
+              QString("%1").arg(adxlFreqLabel),
+              "Az_100  (g)");
 
     ui->customPlot_adxl_x->addGraph();
     ui->customPlot_adxl_x->graph(0)->setPen(QPen(adxlColors[0], 1));
@@ -701,16 +715,16 @@ void MainWindow::initializeAllPlots()
     // ============================================================
 
     setupPlot(ui->customPlot_adxl_x2,
-              QString("Ax_500 %1").arg(adxlFreqLabel),
-              "Voltage (g)");
+              QString("%1").arg(adxlFreqLabel),
+              "Ax_500  (g)");
 
     setupPlot(ui->customPlot_adxl_y2,
-              QString("Ay_500 %1").arg(adxlFreqLabel),
-              "Voltage (g)");
+              QString("%1").arg(adxlFreqLabel),
+              "Ay_500  (g)");
 
     setupPlot(ui->customPlot_adxl_z2,
-              QString("Az_500 %1").arg(adxlFreqLabel),
-              "Voltage (g)");
+              QString("%1").arg(adxlFreqLabel),
+              "Az_500  (g)");
 
     ui->customPlot_adxl_x2->addGraph();
     ui->customPlot_adxl_x2->graph(0)->setPen(QPen(adxlColors[0], 1));
@@ -738,7 +752,7 @@ void MainWindow::initializeAllPlots()
 
     setupPlot(ui->customPlot_new_Pressure,
               "Samples",
-              "Pressure");
+              "Pressure (mbar)");
 
     ui->customPlot_new_Pressure->addGraph();
     ui->customPlot_new_Pressure->graph(0)->setPen(QPen(pressureColor, 1));
@@ -782,45 +796,54 @@ void MainWindow::initializeAllPlots()
         ui->customPlot_new_Pressure_live
     };
 
-    adxl100Range =
+    adxl100RangeMin =
             ui->lineEdit_ADXL_100g->text().toFloat();
 
-    adxl500Range =
+    adxl500RangeMin =
             ui->lineEdit_ADXL_500g->text().toFloat();
 
-    pressureRange =
+    pressureRangeMin =
             ui->lineEdit_pressureRange->text().toFloat();
+
+    adxl100RangeMax =
+            ui->lineEdit_ADXL_100g_2->text().toFloat();
+
+    adxl500RangeMax =
+            ui->lineEdit_ADXL_500g_2->text().toFloat();
+
+    pressureRangeMax =
+            ui->lineEdit_pressureRange_2->text().toFloat();
 
     // ADXL 100g
     ui->customPlot_adxl_x_live->yAxis->setRange(
-                -adxl100Range,
-                adxl100Range);
+                adxl100RangeMin,
+                adxl100RangeMax);
 
     ui->customPlot_adxl_y_live->yAxis->setRange(
-                -adxl100Range,
-                adxl100Range);
+                adxl100RangeMin,
+                adxl100RangeMax);
 
     ui->customPlot_adxl_z_live->yAxis->setRange(
-                -adxl100Range,
-                adxl100Range);
+                adxl100RangeMin,
+                adxl100RangeMax);
 
     // ADXL 500g
     ui->customPlot_adxl_x2_live->yAxis->setRange(
-                -adxl500Range,
-                adxl500Range);
+                adxl500RangeMin,
+                adxl500RangeMax);
 
     ui->customPlot_adxl_y2_live->yAxis->setRange(
-                -adxl500Range,
-                adxl500Range);
+                adxl500RangeMin,
+                adxl500RangeMax);
 
     ui->customPlot_adxl_z2_live->yAxis->setRange(
-                -adxl500Range,
-                adxl500Range);
+                adxl500RangeMin,
+                adxl500RangeMax);
 
     // Temperature & Pressure (keep fixed for now)
     ui->customPlot_new_Temp_live->yAxis->setRange(0,100);
     ui->customPlot_new_Pressure_live->yAxis->setRange(
-                -pressureRange,pressureRange);
+                pressureRangeMin,pressureRangeMax);
 
     // X-axis and replot
     for(auto plot : livePlots)
@@ -865,20 +888,13 @@ void MainWindow::initializeAllPlots()
     ui->customPlot_adxl_x_live->addGraph();
     ui->customPlot_adxl_x_live->graph(0)->setPen(QPen(adxlColors[0],1));
 
-    ui->customPlot_adxl_x_live->addGraph();
-    ui->customPlot_adxl_x_live->graph(1)->setPen(QPen(adxlColors[0],1));
 
     ui->customPlot_adxl_y_live->addGraph();
     ui->customPlot_adxl_y_live->graph(0)->setPen(QPen(adxlColors[1],1));
 
-    ui->customPlot_adxl_y_live->addGraph();
-    ui->customPlot_adxl_y_live->graph(1)->setPen(QPen(adxlColors[1],1));
 
     ui->customPlot_adxl_z_live->addGraph();
     ui->customPlot_adxl_z_live->graph(0)->setPen(QPen(adxlColors[2],1));
-
-    ui->customPlot_adxl_z_live->addGraph();
-    ui->customPlot_adxl_z_live->graph(1)->setPen(QPen(adxlColors[2],1));
 
     // ============================================================
     // LIVE SECOND ADXL PLOTS
@@ -899,21 +915,11 @@ void MainWindow::initializeAllPlots()
     ui->customPlot_adxl_x2_live->addGraph();
     ui->customPlot_adxl_x2_live->graph(0)->setPen(QPen(adxlColors[0],1));
 
-    ui->customPlot_adxl_x2_live->addGraph();
-    ui->customPlot_adxl_x2_live->graph(1)->setPen(QPen(adxlColors[0],1));
-
     ui->customPlot_adxl_y2_live->addGraph();
     ui->customPlot_adxl_y2_live->graph(0)->setPen(QPen(adxlColors[1],1));
 
-    ui->customPlot_adxl_y2_live->addGraph();
-    ui->customPlot_adxl_y2_live->graph(1)->setPen(QPen(adxlColors[1],1));
-
     ui->customPlot_adxl_z2_live->addGraph();
     ui->customPlot_adxl_z2_live->graph(0)->setPen(QPen(adxlColors[2],1));
-
-
-    ui->customPlot_adxl_z2_live->addGraph();
-    ui->customPlot_adxl_z2_live->graph(1)->setPen(QPen(adxlColors[2],1));
 
     // ============================================================
     // LIVE TEMPERATURE
@@ -932,7 +938,7 @@ void MainWindow::initializeAllPlots()
 
     setupPlot(ui->customPlot_new_Pressure_live,
               "Samples",
-              "Pressure");
+              "Pressure (mbar)");
 
     ui->customPlot_new_Pressure_live->addGraph();
     ui->customPlot_new_Pressure_live->graph(0)->setPen(QPen(pressureColor,1));
@@ -961,6 +967,22 @@ void MainWindow::initializeAllPlots()
     plotAy500.fill(0.0, LIVE_WINDOW);
     plotAz500.fill(0.0, LIVE_WINDOW);
 
+    displayAx100.fill(0.0, LIVE_WINDOW);
+    displayAy100.fill(0.0, LIVE_WINDOW);
+    displayAz100.fill(0.0, LIVE_WINDOW);
+
+    displayAx500.fill(0.0, LIVE_WINDOW);
+    displayAy500.fill(0.0, LIVE_WINDOW);
+    displayAz500.fill(0.0, LIVE_WINDOW);
+
+    pressureWriteIndex = 0;
+    plotPressure.fill(0.0, LIVE_WINDOW);
+    displayPressure.fill(0.0, LIVE_WINDOW);
+
+    peakAx100 = peakAy100 = peakAz100 = std::numeric_limits<double>::lowest();
+    peakAx500 = peakAy500 = peakAz500 = std::numeric_limits<double>::lowest();
+    peakPressure = std::numeric_limits<double>::lowest();
+
 }
 
 void MainWindow::makePacket32UI(QList<QByteArray> &rawPacket32List)
@@ -984,25 +1006,6 @@ void MainWindow::makePacket32UI(QList<QByteArray> &rawPacket32List)
         QTimer::singleShot(500,[this](){
             ui->lineEdit_eventId->setStyleSheet("");
         });
-
-
-        // Extracting frequency for Adxl and Inclinometer
-        quint8 highByteAdxl = static_cast<quint8>(Item1[4]);
-        quint8 lowByteAdxl  = static_cast<quint8>(Item1[5]);
-
-        quint16 adxlFreq = (highByteAdxl << 8) | lowByteAdxl;
-        this->adxlFreq=adxlFreq;
-
-        quint8 highByteInclinometer = static_cast<quint8>(Item1[6]);
-        quint8 lowByteInclinometer  = static_cast<quint8>(Item1[7]);
-
-        quint16 InclinometerFreq = (highByteInclinometer << 8) | lowByteInclinometer;
-        this->InclinometerFreq=InclinometerFreq;
-
-        qDebug()<<adxlFreq<<" :adxlFreq";
-        qDebug()<<InclinometerFreq<<" :InclinometerFreq";
-
-        //Extracting Start Time and End Time
 
         // Bytes extraction
         QByteArray startTimeBytes = Item1.mid(20,6);
@@ -1064,44 +1067,6 @@ void MainWindow::makePacket32UI(QList<QByteArray> &rawPacket32List)
             ui->lineEdit_endTime->setText(formattedEnd);
             this->formattedStart=formattedStart;
             this->formattedEnd=formattedEnd;
-
-            QString displayAdxlfreq;
-            QString displayInclinometerfreq;
-            // Updating Labels
-            if(adxlFreq < 101)
-            {
-                displayAdxlfreq=QString::number(1.0/adxlFreq)+" s";
-            }
-            else if(adxlFreq > 100 and adxlFreq < 5001 )
-            {
-                displayAdxlfreq=QString::number((1.0/adxlFreq)*1000)+" ms";
-            }
-            else if(adxlFreq > 5000 and adxlFreq < 20001)
-            {
-                displayAdxlfreq=QString::number((1.0/adxlFreq)*1000000)+" µs";
-            }
-            else
-            {
-                qDebug()<<"Invalid Adxl frequency";
-            }
-
-
-            if(InclinometerFreq < 101)
-            {
-                displayInclinometerfreq=QString::number(1.0/InclinometerFreq)+" s";
-            }
-            else if(InclinometerFreq > 100 and InclinometerFreq < 1001 )
-            {
-                displayInclinometerfreq=QString::number((1.0/InclinometerFreq)*1000)+" ms";
-            }
-            else
-            {
-                qDebug()<<"Invalid inclinometer frequency";
-            }
-
-            setupPlot(ui->customPlot_adxl_x,QString("ADXL X Time(1 = %1)").arg(displayAdxlfreq),"Acceleration(g)",1);
-            setupPlot(ui->customPlot_adxl_y,QString("ADXL Y Time(1 = %1)").arg(displayAdxlfreq),"Acceleration(g)",1);
-            setupPlot(ui->customPlot_adxl_z,QString("ADXL Z Time(1 = %1)").arg(displayAdxlfreq),"Acceleration(g)",1);
 
 
             // Ui blinking
@@ -1181,32 +1146,38 @@ void MainWindow::makePacket2048AdxlTempListPressureList(
                     (static_cast<quint8>(adxlBytes[i+1]) << 8) |
                     static_cast<quint8>(adxlBytes[i]);
             float x1f =  (x1 / 65535.0 ) * 5.12;
+            x1f = ( x1f - 1.65 ) / 0.012;
 
             quint16 y1 =
                     (static_cast<quint8>(adxlBytes[i+3]) << 8) |
                     static_cast<quint8>(adxlBytes[i+2]);
             float y1f =  (y1 / 65535.0 ) * 5.12;
+            y1f = ( y1f - 1.65 ) / 0.012;
 
             quint16 z1 =
                     (static_cast<quint8>(adxlBytes[i+5]) << 8) |
                     static_cast<quint8>(adxlBytes[i+4]);
             float z1f =  (z1 / 65535.0 ) * 5.12;
+            z1f = ( z1f - 1.65 ) / 0.012;
 
 
             quint16 x2 =
                     (static_cast<quint8>(adxlBytes[i+7]) << 8) |
                     static_cast<quint8>(adxlBytes[i+6]);
             float x2f =  (x2 / 65535.0 ) * 5.12;
+            x2f = ( x2f - 1.65 ) / 0.012;
 
             quint16 y2 =
                     (static_cast<quint8>(adxlBytes[i+9]) << 8) |
                     static_cast<quint8>(adxlBytes[i+8]);
             float y2f =  (y2 / 65535.0 ) * 5.12;
+            y2f = ( y2f - 1.65 ) / 0.012;
 
             quint16 z2 =
                     (static_cast<quint8>(adxlBytes[i+11]) << 8) |
                     static_cast<quint8>(adxlBytes[i+10]);
             float z2f =  (z2 / 65535.0 ) * 5.12;
+            z2f = ( z2f - 1.65 ) / 0.012;
 
             sampleIndex.append(globalSample++);
 
@@ -1257,6 +1228,8 @@ void MainWindow::makePacket2048AdxlTempListPressureList(
 
         float pressureValue =
                 bytesToFloatMSB(pressureBytes);
+
+        pressureValue = pressureValue / 100.0;
 
         pressureIndex.append(i + 1);
         pressureValues.append(pressureValue);
@@ -1370,6 +1343,30 @@ void MainWindow::makePacket2048AdxlTempListPressureList(
     qDebug() << "Pressure:" << pressureValues.size();
 
     this->finalSampleIndexNew = sampleIndex;
+
+    //Peak Detection
+    double peakAx100 = *std::max_element(x1Adxl.begin(), x1Adxl.end());
+    double peakAy100 = *std::max_element(y1Adxl.begin(), y1Adxl.end());
+    double peakAz100 = *std::max_element(z1Adxl.begin(), z1Adxl.end());
+
+    double peakAx500 = *std::max_element(x2Adxl.begin(), x2Adxl.end());
+    double peakAy500 = *std::max_element(y2Adxl.begin(), y2Adxl.end());
+    double peakAz500 = *std::max_element(z2Adxl.begin(), z2Adxl.end());
+
+    double peakPressure = *std::max_element(
+            pressureValues.begin(),
+            pressureValues.end());
+
+    ui->lineEdit_Ax_100_peak_2->setText(QString::number(peakAx100, 'f', 3));
+    ui->lineEdit_Ay_100_peak_2->setText(QString::number(peakAy100, 'f', 3));
+    ui->lineEdit_Az_100_peak_2->setText(QString::number(peakAz100, 'f', 3));
+
+    ui->lineEdit_Ax_500_peak_2->setText(QString::number(peakAx500, 'f', 3));
+    ui->lineEdit_Ay_500_peak_2->setText(QString::number(peakAy500, 'f', 3));
+    ui->lineEdit_Az_500_peak_2->setText(QString::number(peakAz500, 'f', 3));
+
+    ui->lineEdit_pressure_peak_2->setText(
+            QString::number(peakPressure, 'f', 3));
 
     this->finalX1AdxlNew = x1Adxl;
     this->finalY1AdxlNew = y1Adxl;
@@ -1867,9 +1864,17 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
         writeToNotes("Trailing FF bytes count: " + QString::number(totalFFCount));
     }
 
-    else if(data.startsWith(QByteArray::fromHex("53 54 54"))&& data.size()==6){
-        quint8 third = static_cast<quint8>(data[3]);
-        quint8 fourth  = static_cast<quint8>(data[4]);
+    else if(data.startsWith("NO_EVENTS"))
+    {
+        //mdgId = 0x03
+        QMessageBox::information(this,"No Events",
+                                 "No Events Detected");
+    }
+
+    else if(data.startsWith(QByteArray::fromHex("53 54 54"))&& data.size()==6)
+    {
+        quint8 third = static_cast<quint8>(data[4]);
+        quint8 fourth  = static_cast<quint8>(data[3]);
 
         quint16 remainingLogs = (third << 8) | fourth;
 
@@ -1880,59 +1885,61 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
     }
     else if (data.startsWith("PARAM"))
     {
-        QByteArray payload = data.mid(7, 4);
+        QByteArray payload = data.mid(8, 11);
+
+        quint8 sNo = static_cast<quint8>(payload[0]);
 
         quint16 logTime =
-                (static_cast<quint8>(payload[0]) << 8) |
-                 static_cast<quint8>(payload[1]);
+                (static_cast<quint8>(payload[1]) << 8) |
+                 static_cast<quint8>(payload[2]);
 
-        quint16 samplingPeriodUS =
-                (static_cast<quint8>(payload[2]) << 8) |
-                 static_cast<quint8>(payload[3]);
+        quint16 samplingFreq =
+                (static_cast<quint8>(payload[3]) << 8) |
+                 static_cast<quint8>(payload[4]);
 
-        quint16 samplingFreq = 0;
+        // Time
+        int hour   = static_cast<quint8>(payload[5]);
+        int minute = static_cast<quint8>(payload[6]);
+        int second = static_cast<quint8>(payload[7]);
 
-        if(samplingPeriodUS != 0)
-        {
-            samplingFreq = 1000000 / samplingPeriodUS;
-        }
+        // Date
+        int day    = static_cast<quint8>(payload[8]);
+        int month  = static_cast<quint8>(payload[9]);
+        int year   = 2000 + static_cast<quint8>(payload[10]);   // YY -> 20YY
 
+        QDate date(year, month, day);
+        QTime time(hour, minute, second);
+        QDateTime dateTime(date, time);
+
+        ui->spinBox_unitNumber->setValue(sNo);
         ui->spinBox_logTime->setValue(logTime);
         ui->spinBox_samplingfrequency->setValue(samplingFreq);
 
+        ui->dateTimeEdit->setDateTime(dateTime);
+
         blinkWidget(ui->spinBox_logTime);
         blinkWidget(ui->spinBox_samplingfrequency);
-
+        blinkWidget(ui->spinBox_unitNumber);
+        blinkWidget(ui->dateTimeEdit);
     }
-    else if(data==QByteArray::fromHex("54 53 41 43 4C")){
+    else if(data==QByteArray::fromHex("54 53 41 43 4C"))
+    {
         eraseDlg = createPleaseWaitDialog("⏳ Please Wait... !!!");
 
     }
-    else if(data.startsWith(QByteArray::fromHex("54 53 44 4F"))){
+    else if(data.startsWith(QByteArray::fromHex("54 53 44 4F")))
+    {
         eraseDlg->close();
         eraseDlg = nullptr;
         QMessageBox::information(this,"erased","Data Erased successfully");
     }
-
-    else if(data.startsWith(QByteArray::fromHex("53 54 44"))){
-        QMessageBox::information(this,"logTime","Log time has set Successfully");
-
-    }
-    else if(data.startsWith(QByteArray::fromHex("53 54 51"))){
-        QMessageBox::information(this,"Threshold","Threshold has set successfully.");
-    }
-    else if(data.startsWith(QByteArray::fromHex("53 54 49")))
+    else if(data.startsWith("NO_ERASE"))
     {
-        QMessageBox::information(this,"DateTime","Date time has set successfully.");
-    }
-    else if(data.startsWith(QByteArray::fromHex("53 54 52")))
-    {
-        QMessageBox::information(this,"ADXL Frequency","ADXL frequency has set successfully.");
-    }
-    else if(data.startsWith(QByteArray::fromHex("53 54 53"))){
-        QMessageBox::information(this,"Inclinometer","Inclinometer frequency has set successfully.");
+        QMessageBox::information(this,"No Events","No Events To Erase");
 
     }
+
+
     else if(data.startsWith("LIVE"))
     {
         // For live plot of 2054 each packet
@@ -1960,6 +1967,11 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
     {
 
         ui->pushButton_stopLivePlot->setText("Stopped");
+    }
+    else if(data.startsWith("ACK_1"))
+    {
+        QMessageBox::information(this,"Success",
+                                 "Parameters Set Successful");
     }
 }
 
@@ -2034,10 +2046,14 @@ void MainWindow::on_pushButton_getEventData_clicked()
         return;
     }
     
-    
+    on_pushButton_currentParameters_clicked();
+    pauseFor(100);
+
     initializeAllPlots();
 
     on_pushButton_clearPoints_fft_clicked();
+
+
 
     // Start the timeout timer
     responseTimer->start(2000); // 2 Sec timer
@@ -2375,77 +2391,6 @@ void MainWindow::on_pushButton_clearPoints_fft_clicked()
     fftLabels.clear();
 }
 
-
-void MainWindow::on_pushButton_logTime_clicked()
-{
-    responseTimer->start(2000);
-    if(ui->spinBox_logTime->value()>65535||ui->spinBox_logTime->value()<1){
-        QMessageBox::information(this,"out of Range","Enter the value between 1 and 65535");
-        return;
-    }
-    QByteArray logTime = QByteArray::fromHex("53 54 44");
-
-    quint16 value = ui->spinBox_logTime->value();
-
-    logTime.append(value & 0xFF); //LSB
-    logTime.append( (value >> 8) & 0xFF); //MSB
-
-    logTime.append(static_cast<char>(0xFF));
-
-    emit sendMsgId(0x10);
-    serialObj->writeData(logTime);
-}
-
-
-void MainWindow::on_pushButton_setTime_clicked()
-{
-    responseTimer->start(2000);
-    QDateTime dt = ui->dateTimeEdit->dateTime();
-
-    int year  = dt.date().year();
-    int month = dt.date().month();
-    int day   = dt.date().day();
-
-    int hour   = dt.time().hour();
-    int minute = dt.time().minute();
-    int second = dt.time().second();
-    qDebug()<<year<<"year send";
-    qDebug()<<minute;
-    // Example: append to packet
-    QByteArray packet=QByteArray::fromHex("535449");
-    packet.append(static_cast<char>(day));
-    packet.append(static_cast<char>(month));
-    packet.append(static_cast<char>(year - 2000)); // if protocol needs 2-digit year
-    packet.append(static_cast<char>(hour));
-    packet.append(static_cast<char>(minute));
-    packet.append(static_cast<char>(second));
-    packet.append(static_cast<char>(0xFF));
-
-    emit sendMsgId(0x10);
-    serialObj->writeData(packet);
-
-
-
-}
-
-void MainWindow::on_pushButton_ADXLfrequency_clicked()
-{
-    if(ui->spinBox_samplingfrequency->value()>10000 || ui->spinBox_samplingfrequency->value()<1){
-        QMessageBox::information(this,"out of Range","Enter the value between 1 and 10000");
-        return;
-    }
-
-    responseTimer->start(2000);
-    QByteArray packet=QByteArray::fromHex("535452");
-    quint16 value = ui->spinBox_samplingfrequency->value();
-    packet.append(static_cast<char>((value >> 8) & 0xFF));
-    packet.append(static_cast<char>(value & 0xFF));
-    packet.append(static_cast<char>(0xFF));
-    qDebug()<<"adxl sent"<<packet.toHex();
-    serialObj->writeData(packet);
-    emit sendMsgId(0x10);
-}
-
 void MainWindow::on_pushButton_remainingLogs_clicked()
 {
     responseTimer->start(2000);
@@ -2456,10 +2401,14 @@ void MainWindow::on_pushButton_remainingLogs_clicked()
 void MainWindow::on_pushButton_currentParameters_clicked()
 {
     responseTimer->start(2000);
-    QByteArray packet=QByteArray::fromHex("535455");
-    serialObj->writeData(packet);
-    emit sendMsgId(0x06);
+    QByteArray packet
+            = QByteArray::fromHex("AA BB 71 FF");
 
+    qDebug() << "Get Current Parameters cmd sent: " + hexBytes(packet);
+    writeToNotes("Get Current Parameters cmd sent: " + hexBytes(packet));
+
+    emit sendMsgId(0x06);
+    serialObj->writeData(packet);
 }
 void MainWindow::on_pushButton_erase_clicked()
 {
@@ -2682,13 +2631,15 @@ bool MainWindow::saveAdxlToCsv(
     out
             << "Event ID,"
             << eventId
+            << ",Unit Number,"
+            << ui->spinBox_unitNumber->value()
+            << ",Acceleration Frequency (Hz),"
+            << ui->spinBox_samplingfrequency->value()
             << ",Start Time,"
             << formattedStart
             << ",End Time,"
             << formattedEnd
             << "\n";
-
-    out << "\n";
 
     //----------------------------------------------------
     // Combined Data Header
@@ -2810,12 +2761,30 @@ void MainWindow::processLivePacket(const QByteArray &payload)
                 static_cast<quint8>(adxlBytes[i+10]);
 
         double x1f = (x1 / 65535.0) * 5.12;
+        x1f = ( x1f - 1.65 ) / 0.012;
+
         double y1f = (y1 / 65535.0) * 5.12;
+        y1f = ( y1f - 1.65 ) / 0.012;
+
         double z1f = (z1 / 65535.0) * 5.12;
+        z1f = ( z1f - 1.65 ) / 0.012;
 
         double x2f = (x2 / 65535.0) * 5.12;
+        x2f = ( x2f - 1.65 ) / 0.012;
+
         double y2f = (y2 / 65535.0) * 5.12;
+        y2f = ( y2f - 1.65 ) / 0.012;
+
         double z2f = (z2 / 65535.0) * 5.12;
+        z2f = ( z2f - 1.65 ) / 0.012;
+
+        peakAx100 = qMax(peakAx100, x1f);
+        peakAy100 = qMax(peakAy100, y1f);
+        peakAz100 = qMax(peakAz100, z1f);
+
+        peakAx500 = qMax(peakAx500, x2f);
+        peakAy500 = qMax(peakAy500, y2f);
+        peakAz500 = qMax(peakAz500, z2f);
 
         liveSampleNumber++;
 
@@ -2855,7 +2824,17 @@ void MainWindow::processLivePacket(const QByteArray &payload)
         {
             writeIndex = 0;
         }
+
     }
+
+    // Peaks
+    ui->lineEdit_Ax_100_peak->setText(QString::number(peakAx100, 'f', 3));
+    ui->lineEdit_Ay_100_peak->setText(QString::number(peakAy100, 'f', 3));
+    ui->lineEdit_Az_100_peak->setText(QString::number(peakAz100, 'f', 3));
+
+    ui->lineEdit_Ax_500_peak->setText(QString::number(peakAx500, 'f', 3));
+    ui->lineEdit_Ay_500_peak->setText(QString::number(peakAy500, 'f', 3));
+    ui->lineEdit_Az_500_peak->setText(QString::number(peakAz500, 'f', 3));
 
     //-------------------------------------------------------
     // Temperature
@@ -2880,11 +2859,16 @@ void MainWindow::processLivePacket(const QByteArray &payload)
     double pressure =
             bytesToFloatMSB(pressureBytes);
 
-    livePressureSampleNumber++;
+    pressure = pressure/100.0;
 
-    ui->customPlot_new_Pressure_live
-            ->graph(0)
-            ->addData(livePressureSampleNumber,pressure);
+    peakPressure = qMax(peakPressure, pressure);
+    ui->lineEdit_pressure_peak->setText(QString::number(peakPressure, 'f', 3));
+
+    plotPressure[pressureWriteIndex] = pressure;
+    pressureWriteIndex++;
+
+    if (pressureWriteIndex >= LIVE_WINDOW)
+        pressureWriteIndex = 0;
 
     //-------------------------------------------------------
     // Store Temp & Pressure for CSV
@@ -2909,15 +2893,6 @@ void MainWindow::processLivePacket(const QByteArray &payload)
                     liveTempSampleNumber-LIVE_WINDOW);
     }
 
-    if(livePressureSampleNumber > LIVE_WINDOW)
-    {
-        ui->customPlot_new_Pressure_live
-                ->graph(0)
-                ->data()
-                ->removeBefore(
-                    livePressureSampleNumber-LIVE_WINDOW);
-    }
-
     //-------------------------------------------------------
     // Move X Axis for temperature and pressure
     //-------------------------------------------------------
@@ -2927,74 +2902,35 @@ void MainWindow::processLivePacket(const QByteArray &payload)
                 LIVE_WINDOW,
                 Qt::AlignRight);
 
-    ui->customPlot_new_Pressure_live->xAxis->setRange(
-                livePressureSampleNumber,
-                LIVE_WINDOW,
-                Qt::AlignRight);
-
     //-------------------------------------------------------
     // Refresh
     //-------------------------------------------------------
 
-    //---------------------- Ax100 ----------------------
+    updateDisplayBuffer(plotAx100, displayAx100, writeIndex);
+    updateDisplayBuffer(plotAy100, displayAy100, writeIndex);
+    updateDisplayBuffer(plotAz100, displayAz100, writeIndex);
 
-    ui->customPlot_adxl_x_live->graph(0)->setData(
-                plotX.mid(writeIndex),
-                plotAx100.mid(writeIndex));
+    updateDisplayBuffer(plotAx500, displayAx500, writeIndex);
+    updateDisplayBuffer(plotAy500, displayAy500, writeIndex);
+    updateDisplayBuffer(plotAz500, displayAz500, writeIndex);
 
-    ui->customPlot_adxl_x_live->graph(1)->setData(
-                plotX.mid(0, writeIndex),
-                plotAx100.mid(0, writeIndex));
+    updateDisplayBuffer(plotPressure, displayPressure, pressureWriteIndex);
 
-    //---------------------- Ay100 ----------------------
+    //-------------------------------------------------------
+    // Update Graph Data
+    //-------------------------------------------------------
 
-    ui->customPlot_adxl_y_live->graph(0)->setData(
-                plotX.mid(writeIndex),
-                plotAy100.mid(writeIndex));
+    ui->customPlot_adxl_x_live->graph(0)->setData(plotX, displayAx100);
+    ui->customPlot_adxl_y_live->graph(0)->setData(plotX, displayAy100);
+    ui->customPlot_adxl_z_live->graph(0)->setData(plotX, displayAz100);
 
-    ui->customPlot_adxl_y_live->graph(1)->setData(
-                plotX.mid(0, writeIndex),
-                plotAy100.mid(0, writeIndex));
+    ui->customPlot_adxl_x2_live->graph(0)->setData(plotX, displayAx500);
+    ui->customPlot_adxl_y2_live->graph(0)->setData(plotX, displayAy500);
+    ui->customPlot_adxl_z2_live->graph(0)->setData(plotX, displayAz500);
 
-    //---------------------- Az100 ----------------------
-
-    ui->customPlot_adxl_z_live->graph(0)->setData(
-                plotX.mid(writeIndex),
-                plotAz100.mid(writeIndex));
-
-    ui->customPlot_adxl_z_live->graph(1)->setData(
-                plotX.mid(0, writeIndex),
-                plotAz100.mid(0, writeIndex));
-
-    //---------------------- Ax500 ----------------------
-
-    ui->customPlot_adxl_x2_live->graph(0)->setData(
-                plotX.mid(writeIndex),
-                plotAx500.mid(writeIndex));
-
-    ui->customPlot_adxl_x2_live->graph(1)->setData(
-                plotX.mid(0, writeIndex),
-                plotAx500.mid(0, writeIndex));
-
-    //---------------------- Ay500 ----------------------
-
-    ui->customPlot_adxl_y2_live->graph(0)->setData(
-                plotX.mid(writeIndex),
-                plotAy500.mid(writeIndex));
-
-    ui->customPlot_adxl_y2_live->graph(1)->setData(
-                plotX.mid(0, writeIndex),
-                plotAy500.mid(0, writeIndex));
-
-    //---------------------- Az500 ----------------------
-
-    ui->customPlot_adxl_z2_live->graph(0)->setData(
-                plotX.mid(writeIndex),
-                plotAz500.mid(writeIndex));
-
-    ui->customPlot_adxl_z2_live->graph(1)->setData(
-                plotX.mid(0, writeIndex),
-                plotAz500.mid(0, writeIndex));
+    ui->customPlot_new_Pressure_live
+            ->graph(0)
+            ->setData(plotX, displayPressure);
 
 
     for(auto plot : livePlots)
@@ -3043,6 +2979,10 @@ void MainWindow::startLiveCsv()
     liveCsvStream
             << "Event ID,"
             << eventId
+            << ",Unit Number,"
+            << ui->spinBox_unitNumber->value()
+            << ",Acceleration Frequency (Hz),"
+            << ui->spinBox_samplingfrequency->value()
             << ",Start Time,"
             << formattedStart
             << "\n\n";
@@ -3144,6 +3084,24 @@ void MainWindow::clearLiveCsvBuffer()
 
     liveCsvData.tempLoaded.clear();
     liveCsvData.pressureLoaded.clear();
+}
+
+void MainWindow::updateDisplayBuffer(
+        const QVector<double> &source,
+        QVector<double> &display,
+        int currentWriteIndex)
+{
+    const int tailSize = LIVE_WINDOW - currentWriteIndex;
+
+    // Tail
+    std::copy(source.begin() + currentWriteIndex,
+              source.end(),
+              display.begin());
+
+    // Head
+    std::copy(source.begin(),
+              source.begin() + currentWriteIndex,
+              display.begin() + tailSize);
 }
 
 void MainWindow::applyHanning(QVector<double> &signal)
@@ -3304,6 +3262,14 @@ void MainWindow::on_pushButton_stopLivePlot_clicked()
 
 void MainWindow::on_pushButton_startLive_clicked()
 {
+    if(ui->lineEdit_windowSize->text().toInt() > 30000)
+    {
+        QMessageBox::warning(this,"Error","Please Use Sample Number Below 30000");
+        return;
+    }
+
+    on_pushButton_currentParameters_clicked();
+    pauseFor(100);
 
     responseTimer->start(2000);
 
@@ -3316,7 +3282,6 @@ void MainWindow::on_pushButton_startLive_clicked()
 
     liveSampleNumber = 0;
     liveTempSampleNumber = 0;
-    livePressureSampleNumber = 0;
 
     int sampleRate =
             ui->spinBox_samplingfrequency->value();
@@ -3330,7 +3295,7 @@ void MainWindow::on_pushButton_startLive_clicked()
 
     command.append(0x53);
     command.append(0x54);
-    command.append(0x41);
+    command.append(0x40);
     command.append(0x52);
     command.append(0x54);
 
@@ -3570,4 +3535,62 @@ void MainWindow::on_pushButton_openFiles_clicked()
         return loadAdxlCsv(
                     filePath);
     }));
+}
+
+void MainWindow::on_pushButton_setCurrentParameters_clicked()
+{
+    responseTimer->start(2000);
+
+    if(ui->spinBox_logTime->value()>65535||ui->spinBox_logTime->value()<1){
+        QMessageBox::information(this,"Out Of Range","Enter the value between 1 and 65535 for log time");
+        return;
+    }
+
+    if(ui->spinBox_samplingfrequency->value()>10000 || ui->spinBox_samplingfrequency->value()<1){
+        QMessageBox::information(this,"Out Of Range","Enter the value between 1 and 10000 for ADXL Sampling Frequency");
+        return;
+    }
+
+    QByteArray command;
+
+    command.append(static_cast<quint8>(0xAA)); //1
+    command.append(static_cast<quint8>(0xBB)); //2
+
+    command.append(static_cast<quint8>(0x61)); //3
+
+    command.append(static_cast<quint8>(ui->spinBox_unitNumber->value())); //4
+
+    quint16 logtime = ui->spinBox_logTime->value();
+    command.append(static_cast<quint8>((logtime >> 8) & 0xFF)); //MSB 5
+    command.append(static_cast<quint8>(logtime & 0xFF)); //LSB 6
+
+    quint16 samplingFreq = ui->spinBox_samplingfrequency->value();
+    command.append(static_cast<quint8>((samplingFreq >> 8) & 0xFF)); //7
+    command.append(static_cast<quint8>(samplingFreq & 0xFF)); //8
+
+    QDateTime dt = ui->dateTimeEdit->dateTime();
+
+    quint8 year  = dt.date().year();
+    quint8 month = dt.date().month();
+    quint8 day   = dt.date().day();
+
+    quint8 hour   = dt.time().hour();
+    quint8 minute = dt.time().minute();
+    quint8 second = dt.time().second();
+
+    command.append(static_cast<quint8>(hour)); //9
+    command.append(static_cast<quint8>(minute)); //10
+    command.append(static_cast<quint8>(second)); //11
+    command.append(static_cast<quint8>(day)); //12
+    command.append(static_cast<quint8>(month)); //13
+    command.append(static_cast<quint8>(year - 2000)); // if protocol needs 2-digit year 14
+
+    command.append(static_cast<quint8>(0xEE)); //15
+    command.append(static_cast<quint8>(0xFF)); //16
+
+    qDebug() << "Set Current Parameters cmd sent: " + hexBytes(command);
+    writeToNotes("Set Current Parameters cmd sent: " + hexBytes(command));
+
+    emit sendMsgId(0x10);
+    serialObj->writeData(command);
 }
