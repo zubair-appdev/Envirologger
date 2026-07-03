@@ -50,6 +50,62 @@ void serialPortHandler::setPORTNAME(const QString &portName)
         emit portOpening("Serial port "+serial->portName()+" opened successfully at baud rate 921600");
     }
 }
+QString serialPortHandler::detectDevicePort()
+{
+    foreach (const QSerialPortInfo &info,
+             QSerialPortInfo::availablePorts())
+    {
+        QSerialPort tempSerial;
+
+        tempSerial.setPort(info);
+
+        tempSerial.setBaudRate(921600);
+        tempSerial.setDataBits(QSerialPort::Data8);
+        tempSerial.setParity(QSerialPort::NoParity);
+        tempSerial.setStopBits(QSerialPort::OneStop);
+        tempSerial.setFlowControl(QSerialPort::NoFlowControl);
+
+        if (tempSerial.open(QIODevice::ReadWrite))
+        {
+            qDebug() << "Checking:"
+                     << info.portName();
+
+            tempSerial.clear();
+            QByteArray packet=QByteArray::fromHex("43 48 45 43 4B");
+
+            tempSerial.write(packet);
+
+            if (tempSerial.waitForBytesWritten(500))
+            {
+                if (tempSerial.waitForReadyRead(1000))
+                {
+                    QByteArray response =
+                            tempSerial.readAll();
+
+                    while (tempSerial.waitForReadyRead(100))
+                    {
+                        response += tempSerial.readAll();
+                    }
+
+                    qDebug() << "Response:"
+                             << response;
+
+                    if (response==QByteArray::fromHex("43 48 45 43 4B"))
+                    {
+                        tempSerial.close();
+
+                        return info.portName();
+                    }
+                }
+            }
+
+            tempSerial.close();
+        }
+    }
+
+    return "";
+}
+
 
 float serialPortHandler::convertBytesToFloat(const QByteArray &data)
 {

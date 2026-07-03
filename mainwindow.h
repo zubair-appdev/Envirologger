@@ -108,15 +108,10 @@ public:
 
 
    // FFT helpers as class member functions
-    void computeAndPlotFFT(const QVector<double>& signal,
-                           double Fs,
-                           QCustomPlot *plot);
 
     void on_pushButton_clearPoints_fft_clicked();
 
     void on_pushButton_fitToScreen_fft_clicked();
-
-    void removeDC(QVector<double> &x);
 
     void blinkLabel(QLabel *label,
                     int durationMs,
@@ -210,7 +205,14 @@ private slots:
                         QVector<double> &freqAxis,
                         double sampleRate);
 
+        void removeDC(QVector<double> &x);
+
+        void computeAndPlotFFT(const QVector<double>& signal,
+                               double Fs,
+                               QCustomPlot *plot);
+
        void setupFFTPlot(QCustomPlot *plot, const QString &xLabel);
+
 
        void on_pushButton_erase_clicked();
 
@@ -223,6 +225,10 @@ private slots:
        void on_pushButton_openFiles_clicked();
 
        void on_pushButton_setCurrentParameters_clicked();
+
+       void on_pushButton_LoadFFT_clicked();
+
+       void on_pushButton_clearFFTplots_clicked();
 
 signals:
     void sendMsgId(quint8 id);
@@ -291,6 +297,8 @@ private:
      quint16 eventId;
      QString formattedStart;
      QString formattedEnd;
+     quint8 unitNo;
+     quint16 accFrequency;
 
      // CSV load files
      struct CsvPlotData
@@ -377,6 +385,10 @@ private:
      double peakAz500 = std::numeric_limits<double>::lowest();
 
      double peakPressure = std::numeric_limits<double>::lowest();
+
+     // FFT Offline loading
+     CsvPlotData loadedCsvData;
+     bool csvLoaded = false;
 
 
 };  

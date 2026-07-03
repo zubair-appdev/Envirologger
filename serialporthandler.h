@@ -48,6 +48,8 @@ public:
 
     QString hexBytesSerial(QByteArray &cmd);
 
+    QString detectDevicePort();
+
 
 signals:
 

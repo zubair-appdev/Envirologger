@@ -15,6 +15,29 @@ MainWindow::MainWindow(QWidget *parent)
     ui->dateTimeEdit->setDateTime(QDateTime(QDate(2026, 7, 1),
                                             QTime(0, 0, 0)));
 
+    QString detectedPort =
+                    serialObj->detectDevicePort();
+
+            if (!detectedPort.isEmpty())
+            {
+                ui->comboBox_ports
+                        ->setCurrentText(detectedPort);
+
+                serialObj->setPORTNAME(detectedPort);
+
+                if (ui->comboBox_ports->findText(detectedPort) == -1)
+                {
+                    ui->comboBox_ports->addItem(detectedPort);
+                }
+
+                ui->comboBox_ports->setCurrentText(detectedPort);
+
+
+                qDebug() << "Auto connected to"
+                         << detectedPort;
+            }
+
+
     ui->spinBox_logTime->setRange(INT_MIN, INT_MAX);
     ui->spinBox_samplingfrequency->setRange(INT_MIN, INT_MAX);
 
@@ -73,7 +96,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     showMaximized();
 
-    ui->tabWidget->setCurrentWidget(ui->tab_logger);
+    ui->tabWidget->setCurrentWidget(ui->tab_settings);
 
     // Hiding Temperature Plot Start ---------------------------------------
     ui->customPlot_new_Temp->setMinimumHeight(100);
@@ -171,15 +194,29 @@ quint8 MainWindow::calculateChecksum(const QByteArray &data)
 
 void MainWindow::refreshPorts()
 {
-    QString currentPort = ui->comboBox_ports->currentText();
+    qDebug() << "Refreshing ports...";
 
-    qDebug()<<"Refreshing ports...";
     ui->comboBox_ports->clear();
-    QStringList availablePorts;
-    ui->comboBox_ports->addItems(serialObj->availablePorts());
 
-    ui->comboBox_ports->setCurrentText(currentPort);
+    QStringList ports =
+            serialObj->availablePorts();
+
+    ui->comboBox_ports->addItems(ports);
+
+    QString detectedPort =
+            serialObj->detectDevicePort();
+
+    if (!detectedPort.isEmpty())
+    {
+        ui->comboBox_ports ->setCurrentText(detectedPort);
+
+        serialObj->setPORTNAME(detectedPort);
+
+        qDebug() << "Auto connected to"
+                 << detectedPort;
+    }
 }
+
 
 void MainWindow::onPortSelected(const QString &portName)
 {
@@ -420,12 +457,6 @@ MainWindow::loadAdxlCsv(
         in.readLine();
     }
 
-    // Empty row
-    if(!in.atEnd())
-    {
-        in.readLine();
-    }
-
     // Header row
     if(!in.atEnd())
     {
@@ -445,7 +476,7 @@ MainWindow::loadAdxlCsv(
         QStringList values =
                 line.split(",");
 
-        if(values.size() < 9)
+        if(values.size() < 8)
         {
             continue;
         }
@@ -490,6 +521,7 @@ MainWindow::loadAdxlCsv(
             continue;
         }
 
+
         result.sampleIndex.append(sample);
 
         result.x1Loaded.append(x1);
@@ -500,35 +532,18 @@ MainWindow::loadAdxlCsv(
         result.y2Loaded.append(y2);
         result.z2Loaded.append(z2);
 
-        //------------------------------------------------
-        // Temperature
-        //------------------------------------------------
-
-        if(values.size() > 7 &&
-                !values[7].trimmed().isEmpty())
-        {
-            bool okTemp = false;
-
-            double temp =
-                    values[7].toDouble(&okTemp);
-
-            if(okTemp)
-            {
-                result.tempLoaded.append(temp);
-            }
-        }
 
         //------------------------------------------------
         // Pressure
         //------------------------------------------------
 
-        if(values.size() > 8 &&
-                !values[8].trimmed().isEmpty())
+        if(values.size() > 7 &&
+                !values[7].trimmed().isEmpty())
         {
             bool okPressure = false;
 
             double pressure =
-                    values[8].toDouble(&okPressure);
+                    values[7].toDouble(&okPressure);
 
             if(okPressure)
             {
@@ -856,9 +871,13 @@ void MainWindow::initializeAllPlots()
     // FFT PLOTS
     // ============================================================
 
-    setupFFTPlot(ui->customPlot_adxl_x_FFT, "ADXL X Frequency (Hz)");
-    setupFFTPlot(ui->customPlot_adxl_y_FFT, "ADXL Y Frequency (Hz)");
-    setupFFTPlot(ui->customPlot_adxl_z_FFT, "ADXL Z Frequency (Hz)");
+    setupFFTPlot(ui->customPlot_adxl_x_FFT, "Ax_100 Frequency (Hz)");
+    setupFFTPlot(ui->customPlot_adxl_y_FFT, "Ay_100 Frequency (Hz)");
+    setupFFTPlot(ui->customPlot_adxl_z_FFT, "Az_100 Frequency (Hz)");
+
+    setupFFTPlot(ui->customPlot_adxl_x_FFT_2, "Ax_500 Frequency (Hz)");
+    setupFFTPlot(ui->customPlot_adxl_y_FFT_2, "Ay_500 Frequency (Hz)");
+    setupFFTPlot(ui->customPlot_adxl_z_FFT_2, "Az_500 Frequency (Hz)");
 
     ui->customPlot_adxl_x_FFT->addGraph();
     ui->customPlot_adxl_x_FFT->graph(0)->setPen(QPen(tempColor, 1));
@@ -868,6 +887,15 @@ void MainWindow::initializeAllPlots()
 
     ui->customPlot_adxl_z_FFT->addGraph();
     ui->customPlot_adxl_z_FFT->graph(0)->setPen(QPen(tempColor, 1));
+
+    ui->customPlot_adxl_x_FFT_2->addGraph();
+    ui->customPlot_adxl_x_FFT_2->graph(0)->setPen(QPen(tempColor, 1));
+
+    ui->customPlot_adxl_y_FFT_2->addGraph();
+    ui->customPlot_adxl_y_FFT_2->graph(0)->setPen(QPen(tempColor, 1));
+
+    ui->customPlot_adxl_z_FFT_2->addGraph();
+    ui->customPlot_adxl_z_FFT_2->graph(0)->setPen(QPen(tempColor, 1));
 
     // ============================================================
     // LIVE ADXL PLOTS
@@ -1006,6 +1034,16 @@ void MainWindow::makePacket32UI(QList<QByteArray> &rawPacket32List)
         QTimer::singleShot(500,[this](){
             ui->lineEdit_eventId->setStyleSheet("");
         });
+
+        // Unit no and sampling freq extraction
+        quint8 unitNo = static_cast<quint8>(Item1[6]);
+        this->unitNo = unitNo;
+
+        quint16 accFrequency =
+            (static_cast<quint8>(Item1[4]) << 8) |
+             static_cast<quint8>(Item1[5]);
+
+        this->accFrequency = accFrequency;
 
         // Bytes extraction
         QByteArray startTimeBytes = Item1.mid(20,6);
@@ -1165,19 +1203,19 @@ void MainWindow::makePacket2048AdxlTempListPressureList(
                     (static_cast<quint8>(adxlBytes[i+7]) << 8) |
                     static_cast<quint8>(adxlBytes[i+6]);
             float x2f =  (x2 / 65535.0 ) * 5.12;
-            x2f = ( x2f - 1.65 ) / 0.012;
+            x2f = ( x2f - 1.65 ) / 0.0025;
 
             quint16 y2 =
                     (static_cast<quint8>(adxlBytes[i+9]) << 8) |
                     static_cast<quint8>(adxlBytes[i+8]);
             float y2f =  (y2 / 65535.0 ) * 5.12;
-            y2f = ( y2f - 1.65 ) / 0.012;
+            y2f = ( y2f - 1.65 ) / 0.0025;
 
             quint16 z2 =
                     (static_cast<quint8>(adxlBytes[i+11]) << 8) |
                     static_cast<quint8>(adxlBytes[i+10]);
             float z2f =  (z2 / 65535.0 ) * 5.12;
-            z2f = ( z2f - 1.65 ) / 0.012;
+            z2f = ( z2f - 1.65 ) / 0.0025;
 
             sampleIndex.append(globalSample++);
 
@@ -1730,7 +1768,7 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
             QMessageBox::information(
                         this,
                         "Success",
-                        "CSV data saved successfully.");
+                        "CSV data saved successfully on Desktop.");
         });
 
         // NEW CODE : CSV DUMP ONLY --------------------------------- END
@@ -1885,7 +1923,7 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
     }
     else if (data.startsWith("PARAM"))
     {
-        QByteArray payload = data.mid(8, 11);
+        QByteArray payload = data.mid(8, 6);
 
         quint8 sNo = static_cast<quint8>(payload[0]);
 
@@ -1897,30 +1935,22 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
                 (static_cast<quint8>(payload[3]) << 8) |
                  static_cast<quint8>(payload[4]);
 
-        // Time
-        int hour   = static_cast<quint8>(payload[5]);
-        int minute = static_cast<quint8>(payload[6]);
-        int second = static_cast<quint8>(payload[7]);
+        quint8 loginMode = static_cast<quint8>(payload[5]);
 
-        // Date
-        int day    = static_cast<quint8>(payload[8]);
-        int month  = static_cast<quint8>(payload[9]);
-        int year   = 2000 + static_cast<quint8>(payload[10]);   // YY -> 20YY
-
-        QDate date(year, month, day);
-        QTime time(hour, minute, second);
-        QDateTime dateTime(date, time);
 
         ui->spinBox_unitNumber->setValue(sNo);
         ui->spinBox_logTime->setValue(logTime);
         ui->spinBox_samplingfrequency->setValue(samplingFreq);
 
-        ui->dateTimeEdit->setDateTime(dateTime);
+        if(loginMode == static_cast<quint8>(0xAB))
+            ui->radioButton_powerON->setChecked(true);
+
+        if(loginMode == static_cast<quint8>(0xAF))
+            ui->radioButton_GPIO->setChecked(true);
 
         blinkWidget(ui->spinBox_logTime);
         blinkWidget(ui->spinBox_samplingfrequency);
         blinkWidget(ui->spinBox_unitNumber);
-        blinkWidget(ui->dateTimeEdit);
     }
     else if(data==QByteArray::fromHex("54 53 41 43 4C"))
     {
@@ -1967,6 +1997,7 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
     {
 
         ui->pushButton_stopLivePlot->setText("Stopped");
+        QMessageBox::information(this,"Success","CSV File generated on Desktop");
     }
     else if(data.startsWith("ACK_1"))
     {
@@ -2045,15 +2076,13 @@ void MainWindow::on_pushButton_getEventData_clicked()
         QMessageBox::warning(this, "Error", "Please enter a valid Event ID (0–65535)");
         return;
     }
-    
-    on_pushButton_currentParameters_clicked();
-    pauseFor(100);
 
     initializeAllPlots();
 
     on_pushButton_clearPoints_fft_clicked();
 
-
+    csvLoaded = false;
+    loadedCsvData = CsvPlotData();
 
     // Start the timeout timer
     responseTimer->start(2000); // 2 Sec timer
@@ -2329,7 +2358,12 @@ void MainWindow::on_pushButton_fitToScreen_fft_clicked()
     QList<QCustomPlot*> allPlots = {
         ui->customPlot_adxl_x_FFT,
         ui->customPlot_adxl_y_FFT,
-        ui->customPlot_adxl_z_FFT
+        ui->customPlot_adxl_z_FFT,
+        ui->customPlot_adxl_x_FFT_2,
+        ui->customPlot_adxl_y_FFT_2,
+        ui->customPlot_adxl_z_FFT_2
+
+
     };
 
     for (QCustomPlot *plot : allPlots)
@@ -2386,6 +2420,9 @@ void MainWindow::on_pushButton_clearPoints_fft_clicked()
     clearPlot(ui->customPlot_adxl_x_FFT);
     clearPlot(ui->customPlot_adxl_y_FFT);
     clearPlot(ui->customPlot_adxl_z_FFT);
+    clearPlot(ui->customPlot_adxl_x_FFT_2);
+    clearPlot(ui->customPlot_adxl_y_FFT_2);
+    clearPlot(ui->customPlot_adxl_z_FFT_2);
 
     fftTracers.clear();
     fftLabels.clear();
@@ -2622,7 +2659,7 @@ bool MainWindow::saveAdxlToCsv(
     out.setRealNumberNotation(
                 QTextStream::FixedNotation);
 
-    out.setRealNumberPrecision(6);
+    out.setRealNumberPrecision(3);
 
     //----------------------------------------------------
     // Metadata
@@ -2632,9 +2669,9 @@ bool MainWindow::saveAdxlToCsv(
             << "Event ID,"
             << eventId
             << ",Unit Number,"
-            << ui->spinBox_unitNumber->value()
+            << static_cast<int>(unitNo)
             << ",Acceleration Frequency (Hz),"
-            << ui->spinBox_samplingfrequency->value()
+            << accFrequency
             << ",Start Time,"
             << formattedStart
             << ",End Time,"
@@ -2646,7 +2683,7 @@ bool MainWindow::saveAdxlToCsv(
     //----------------------------------------------------
 
     out
-            << "Sample Number,"
+            << "Time in (Us),"
             << "Ax_100(g),"
             << "Ay_100(g),"
             << "Az_100(g),"
@@ -2667,7 +2704,7 @@ bool MainWindow::saveAdxlToCsv(
         ++i)
     {
         out
-                << sampleIndex[i] << ","
+                << sampleIndex[i] * (1000000.0 / accFrequency) << ","
                 << x1Adxl[i] << ","
                 << y1Adxl[i] << ","
                 << z1Adxl[i] << ","
@@ -2770,13 +2807,13 @@ void MainWindow::processLivePacket(const QByteArray &payload)
         z1f = ( z1f - 1.65 ) / 0.012;
 
         double x2f = (x2 / 65535.0) * 5.12;
-        x2f = ( x2f - 1.65 ) / 0.012;
+        x2f = ( x2f - 1.65 ) / 0.0025;
 
         double y2f = (y2 / 65535.0) * 5.12;
-        y2f = ( y2f - 1.65 ) / 0.012;
+        y2f = ( y2f - 1.65 ) / 0.0025;
 
         double z2f = (z2 / 65535.0) * 5.12;
-        z2f = ( z2f - 1.65 ) / 0.012;
+        z2f = ( z2f - 1.65 ) / 0.0025;
 
         peakAx100 = qMax(peakAx100, x1f);
         peakAy100 = qMax(peakAy100, y1f);
@@ -2973,21 +3010,6 @@ void MainWindow::startLiveCsv()
     liveCsvStream.setRealNumberPrecision(3);
 
     //-------------------------------------------------------
-    // Metadata
-    //-------------------------------------------------------
-
-    liveCsvStream
-            << "Event ID,"
-            << eventId
-            << ",Unit Number,"
-            << ui->spinBox_unitNumber->value()
-            << ",Acceleration Frequency (Hz),"
-            << ui->spinBox_samplingfrequency->value()
-            << ",Start Time,"
-            << formattedStart
-            << "\n\n";
-
-    //-------------------------------------------------------
     // Header
     //-------------------------------------------------------
 
@@ -3121,6 +3143,7 @@ void MainWindow::applyHanning(QVector<double> &signal)
     for (int n = 0; n < N; ++n)
     {
         const double w = 0.5 * (1.0 - std::cos(coeff * n));
+
         signal[n] *= w;
     }
 }
@@ -3171,12 +3194,11 @@ void MainWindow::performFFT(const QVector<double> &input,
         return;
     }
 
-    qDebug() << "Debug 9: performing FFT of size" << N;
 
     // --- Execute safely ---
     kiss_fft(cfg, timeData.data(), freqData.data());
 
-    qDebug() << "Debug 10: FFT complete";
+    qDebug() << "FFT complete";
 
 #ifdef kiss_fft_free
     kiss_fft_free(cfg);
@@ -3202,10 +3224,6 @@ void MainWindow::performFFT(const QVector<double> &input,
     }
 }
 
-
-
-
-
 void MainWindow::computeAndPlotFFT(const QVector<double>& signal,
                                    double Fs,
                                    QCustomPlot *plot)
@@ -3214,14 +3232,13 @@ void MainWindow::computeAndPlotFFT(const QVector<double>& signal,
         return;
 
     QVector<double> processed = signal;
-    qDebug()<<"Debug 3";
+
     removeDC(processed);      //1.Remove mean
     applyHanning(processed);   // 2. apply window
 
-    qDebug()<<"Debug 4";
+
     QVector<double> mag, freq;
 
-    qDebug()<<"Debug 5";
     performFFT(processed, mag, freq, Fs);  // 3. FFT
 
     // ---- Plot (correct way) ----
@@ -3268,13 +3285,13 @@ void MainWindow::on_pushButton_startLive_clicked()
         return;
     }
 
-    on_pushButton_currentParameters_clicked();
-    pauseFor(100);
-
     responseTimer->start(2000);
 
     //Initializing X and Y Ranges
     LIVE_WINDOW = ui->lineEdit_windowSize->text().toInt();
+
+    on_pushButton_currentParameters_clicked();
+    pauseFor(100);
 
     initializeAllPlots();
 
@@ -3309,7 +3326,59 @@ void MainWindow::on_pushButton_startLive_clicked()
 
 void MainWindow::on_pushButton_fitToScreenLive_clicked()
 {
+    const double windowSize =
+            ui->lineEdit_windowSize->text().toDouble();
 
+    //---------------- ADXL 100 ----------------
+
+    double adxl100Min =
+            ui->lineEdit_ADXL_100g->text().toDouble();
+
+    double adxl100Max =
+            ui->lineEdit_ADXL_100g_2->text().toDouble();
+
+    ui->customPlot_adxl_x_live->xAxis->setRange(0, windowSize);
+    ui->customPlot_adxl_y_live->xAxis->setRange(0, windowSize);
+    ui->customPlot_adxl_z_live->xAxis->setRange(0, windowSize);
+
+    ui->customPlot_adxl_x_live->yAxis->setRange(adxl100Min, adxl100Max);
+    ui->customPlot_adxl_y_live->yAxis->setRange(adxl100Min, adxl100Max);
+    ui->customPlot_adxl_z_live->yAxis->setRange(adxl100Min, adxl100Max);
+
+    //---------------- ADXL 500 ----------------
+
+    double adxl500Min =
+            ui->lineEdit_ADXL_500g->text().toDouble();
+
+    double adxl500Max =
+            ui->lineEdit_ADXL_500g_2->text().toDouble();
+
+    ui->customPlot_adxl_x2_live->xAxis->setRange(0, windowSize);
+    ui->customPlot_adxl_y2_live->xAxis->setRange(0, windowSize);
+    ui->customPlot_adxl_z2_live->xAxis->setRange(0, windowSize);
+
+    ui->customPlot_adxl_x2_live->yAxis->setRange(adxl500Min, adxl500Max);
+    ui->customPlot_adxl_y2_live->yAxis->setRange(adxl500Min, adxl500Max);
+    ui->customPlot_adxl_z2_live->yAxis->setRange(adxl500Min, adxl500Max);
+
+
+    //---------------- Pressure ----------------
+
+    double pressureMin =
+            ui->lineEdit_pressureRange->text().toDouble();
+
+    double pressureMax =
+            ui->lineEdit_pressureRange_2->text().toDouble();
+
+    ui->customPlot_new_Pressure_live->xAxis->setRange(0, windowSize);
+    ui->customPlot_new_Pressure_live->yAxis->setRange(pressureMin, pressureMax);
+
+    //---------------- Replot ----------------
+
+    for(auto plot : livePlots)
+    {
+        plot->replot(QCustomPlot::rpQueuedReplot);
+    }
 }
 
 void MainWindow::on_pushButton_openFiles_clicked()
@@ -3333,6 +3402,7 @@ void MainWindow::on_pushButton_openFiles_clicked()
     {
         return;
     }
+
 
     //------------------------------------------------
     // Loading Dialog
@@ -3522,6 +3592,9 @@ void MainWindow::on_pushButton_openFiles_clicked()
         qDebug() << "Loaded Pressure:"
                  << data.pressureLoaded.size();
 
+        loadedCsvData = data;
+        csvLoaded = true;
+
         QMessageBox::information(
                     this,
                     "Success",
@@ -3585,12 +3658,211 @@ void MainWindow::on_pushButton_setCurrentParameters_clicked()
     command.append(static_cast<quint8>(month)); //13
     command.append(static_cast<quint8>(year - 2000)); // if protocol needs 2-digit year 14
 
-    command.append(static_cast<quint8>(0xEE)); //15
-    command.append(static_cast<quint8>(0xFF)); //16
+    quint8 mode = ui->radioButton_powerON->isChecked() ? 0xAB : 0xAF;
+    command.append(static_cast<quint8>(mode)); // 15
+
+    command.append(static_cast<quint8>(0xEE)); //16
+    command.append(static_cast<quint8>(0xFF)); //17
 
     qDebug() << "Set Current Parameters cmd sent: " + hexBytes(command);
     writeToNotes("Set Current Parameters cmd sent: " + hexBytes(command));
 
     emit sendMsgId(0x10);
     serialObj->writeData(command);
+}
+
+void MainWindow::on_pushButton_LoadFFT_clicked()
+{
+    //-------------------------------------------------------
+    // Decide Data Source
+    //-------------------------------------------------------
+
+    const bool useLoadedCsv =
+            csvLoaded &&
+            !loadedCsvData.x1Loaded.isEmpty();
+
+    if(!useLoadedCsv && finalX1AdxlNew.isEmpty())
+    {
+        QMessageBox::warning(this,
+                             "FFT",
+                             "No ADXL data available.");
+        return;
+    }
+
+    //-------------------------------------------------------
+    // Sampling Frequency
+    //-------------------------------------------------------
+
+    const double sampleRate = accFrequency;
+
+    if(sampleRate <= 0)
+    {
+        QMessageBox::warning(this,
+                             "FFT",
+                             "Invalid Sampling Frequency.");
+        return;
+    }
+
+    //-------------------------------------------------------
+    // Data Selection
+    //-------------------------------------------------------
+
+    const QVector<double> &ax100 =
+            useLoadedCsv ?
+            loadedCsvData.x1Loaded :
+            finalX1AdxlNew;
+
+    const QVector<double> &ay100 =
+            useLoadedCsv ?
+            loadedCsvData.y1Loaded :
+            finalY1AdxlNew;
+
+    const QVector<double> &az100 =
+            useLoadedCsv ?
+            loadedCsvData.z1Loaded :
+            finalZ1AdxlNew;
+
+    const QVector<double> &ax500 =
+            useLoadedCsv ?
+            loadedCsvData.x2Loaded :
+            finalX2AdxlNew;
+
+    const QVector<double> &ay500 =
+            useLoadedCsv ?
+            loadedCsvData.y2Loaded :
+            finalY2AdxlNew;
+
+    const QVector<double> &az500 =
+            useLoadedCsv ?
+            loadedCsvData.z2Loaded :
+            finalZ2AdxlNew;
+
+    //-------------------------------------------------------
+    // Selection
+    //-------------------------------------------------------
+
+    bool allSelected = ui->checkBox_All->isChecked();
+
+    if(!allSelected &&
+       !ui->checkBox_Ax_100->isChecked() &&
+       !ui->checkBox_Ay_100->isChecked() &&
+       !ui->checkBox_Az_100->isChecked() &&
+       !ui->checkBox_Ax_500->isChecked() &&
+       !ui->checkBox_Ay_500->isChecked() &&
+       !ui->checkBox_Az_500->isChecked())
+    {
+        QMessageBox::information(this,
+                                 "FFT",
+                                 "Please select at least one parameter.");
+
+        return;
+    }
+
+    //-------------------------------------------------------
+    // Loading Dialog
+    //-------------------------------------------------------
+
+    QDialog *fftDialog =
+            createPleaseWaitDialog(
+                "⏳ Please Wait ! FFT Plot Loading");
+
+    //-------------------------------------------------------
+    // Compute FFT
+    //-------------------------------------------------------
+
+    if(allSelected || ui->checkBox_Ax_100->isChecked())
+    {
+        computeAndPlotFFT(ax100,
+                          sampleRate,
+                          ui->customPlot_adxl_x_FFT);
+    }
+
+    if(allSelected || ui->checkBox_Ay_100->isChecked())
+    {
+        computeAndPlotFFT(ay100,
+                          sampleRate,
+                          ui->customPlot_adxl_y_FFT);
+    }
+
+    if(allSelected || ui->checkBox_Az_100->isChecked())
+    {
+        computeAndPlotFFT(az100,
+                          sampleRate,
+                          ui->customPlot_adxl_z_FFT);
+    }
+
+    if(allSelected || ui->checkBox_Ax_500->isChecked())
+    {
+        computeAndPlotFFT(ax500,
+                          sampleRate,
+                          ui->customPlot_adxl_x_FFT_2);
+    }
+
+    if(allSelected || ui->checkBox_Ay_500->isChecked())
+    {
+        computeAndPlotFFT(ay500,
+                          sampleRate,
+                          ui->customPlot_adxl_y_FFT_2);
+    }
+
+    if(allSelected || ui->checkBox_Az_500->isChecked())
+    {
+        computeAndPlotFFT(az500,
+                          sampleRate,
+                          ui->customPlot_adxl_z_FFT_2);
+    }
+
+    qDebug() << (useLoadedCsv ?
+                 "FFT generated from Loaded CSV." :
+                 "FFT generated from Live Acquisition.");
+
+    //-------------------------------------------------------
+    // Close Dialog
+    //-------------------------------------------------------
+
+    if(fftDialog)
+    {
+        fftDialog->close();
+        fftDialog->deleteLater();
+    }
+}
+
+void MainWindow::on_pushButton_clearFFTplots_clicked()
+{
+    QList<QCustomPlot*> fftPlots =
+    {
+        ui->customPlot_adxl_x_FFT,
+        ui->customPlot_adxl_y_FFT,
+        ui->customPlot_adxl_z_FFT,
+
+        ui->customPlot_adxl_x_FFT_2,
+        ui->customPlot_adxl_y_FFT_2,
+        ui->customPlot_adxl_z_FFT_2
+    };
+
+    //-------------------------------------------------------
+    // Clear FFT Graphs
+    //-------------------------------------------------------
+
+    for(auto plot : fftPlots)
+    {
+        if(plot->graphCount() > 0)
+        {
+            plot->graph(0)->data()->clear();
+        }
+
+        plot->replot(QCustomPlot::rpQueuedReplot);
+    }
+
+    //-------------------------------------------------------
+    // Remove Peak Markers / Labels
+    //-------------------------------------------------------
+
+    qDeleteAll(fftTracers);
+    fftTracers.clear();
+
+    qDeleteAll(fftLabels);
+    fftLabels.clear();
+
+    qDebug() << "FFT plots cleared.";
 }

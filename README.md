@@ -78,3 +78,6 @@
 
 #Ver 3.6 ------------------------------------------------------------------------------------------------
 - Peak implementation and live plot single graph source and display buffer implemented.
+
+#Ver 3.7 -----------------------------------------------------------------------------------------------
+- FFT for DSVDL implemented and ready for tomorrow client presentation.
