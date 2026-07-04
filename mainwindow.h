@@ -298,11 +298,12 @@ private:
      QString formattedStart;
      QString formattedEnd;
      quint8 unitNo;
-     quint16 accFrequency;
+     quint16 accFrequency = 0;
 
      // CSV load files
      struct CsvPlotData
      {
+         int accFrequency = 0;
          QVector<double> sampleIndex;
 
          QVector<double> x1Loaded;

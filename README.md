@@ -81,3 +81,6 @@
 
 #Ver 3.7 -----------------------------------------------------------------------------------------------
 - FFT for DSVDL implemented and ready for tomorrow client presentation.
+
+#Ver 3.8 ----------------------------------------------------------------------------------------------
+- setupPlot(1) issue resolved in get events data.

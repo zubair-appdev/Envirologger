@@ -25,13 +25,6 @@ MainWindow::MainWindow(QWidget *parent)
 
                 serialObj->setPORTNAME(detectedPort);
 
-                if (ui->comboBox_ports->findText(detectedPort) == -1)
-                {
-                    ui->comboBox_ports->addItem(detectedPort);
-                }
-
-                ui->comboBox_ports->setCurrentText(detectedPort);
-
 
                 qDebug() << "Auto connected to"
                          << detectedPort;
@@ -92,7 +85,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     writeToNotes("Pointer Size: "+QString::number(sizeof(void *))+" If it is 8 : 64 bit else 4 means 32 bit");
 
-    setWindowTitle("Envirologger");
+    setWindowTitle("DSVDL");
 
     showMaximized();
 
@@ -111,6 +104,43 @@ MainWindow::MainWindow(QWidget *parent)
     // Hiding Temperature Plot Stop -----------------------------------------
 
     initializeAllPlots();
+
+    // ============================================================
+    // FFT PLOTS
+    // ============================================================
+    QColor tempColor(255, 255, 100);
+
+    if(ui->customPlot_adxl_x_FFT->graphCount() == 0)
+        ui->customPlot_adxl_x_FFT->addGraph();
+    ui->customPlot_adxl_x_FFT->graph(0)->setPen(QPen(tempColor,1));
+
+    if(ui->customPlot_adxl_y_FFT->graphCount() == 0)
+        ui->customPlot_adxl_y_FFT->addGraph();
+    ui->customPlot_adxl_y_FFT->graph(0)->setPen(QPen(tempColor,1));
+
+    if(ui->customPlot_adxl_z_FFT->graphCount() == 0)
+        ui->customPlot_adxl_z_FFT->addGraph();
+    ui->customPlot_adxl_z_FFT->graph(0)->setPen(QPen(tempColor,1));
+
+    if(ui->customPlot_adxl_x_FFT_2->graphCount() == 0)
+        ui->customPlot_adxl_x_FFT_2->addGraph();
+    ui->customPlot_adxl_x_FFT_2->graph(0)->setPen(QPen(tempColor,1));
+
+    if(ui->customPlot_adxl_y_FFT_2->graphCount() == 0)
+        ui->customPlot_adxl_y_FFT_2->addGraph();
+    ui->customPlot_adxl_y_FFT_2->graph(0)->setPen(QPen(tempColor,1));
+
+    if(ui->customPlot_adxl_z_FFT_2->graphCount() == 0)
+        ui->customPlot_adxl_z_FFT_2->addGraph();
+    ui->customPlot_adxl_z_FFT_2->graph(0)->setPen(QPen(tempColor,1));
+
+    setupFFTPlot(ui->customPlot_adxl_x_FFT, "Ax_100 Frequency (Hz)");
+    setupFFTPlot(ui->customPlot_adxl_y_FFT, "Ay_100 Frequency (Hz)");
+    setupFFTPlot(ui->customPlot_adxl_z_FFT, "Az_100 Frequency (Hz)");
+
+    setupFFTPlot(ui->customPlot_adxl_x_FFT_2, "Ax_500 Frequency (Hz)");
+    setupFFTPlot(ui->customPlot_adxl_y_FFT_2, "Ay_500 Frequency (Hz)");
+    setupFFTPlot(ui->customPlot_adxl_z_FFT_2, "Az_500 Frequency (Hz)");
 
     // Setting Table Get Log Events
     ui->tableWidget_getLogEvents->setColumnCount(3);
@@ -452,10 +482,33 @@ MainWindow::loadAdxlCsv(
     QTextStream in(&file);
 
     // Metadata row
+    QString metadataLine;
+
     if(!in.atEnd())
     {
-        in.readLine();
+        metadataLine = in.readLine().trimmed();
     }
+
+    // Extracting accFrequency
+    QStringList meta = metadataLine.split(",");
+
+    for(int i = 0; i < meta.size() - 1; ++i)
+    {
+        if(meta[i].trimmed() == "Acceleration Frequency (Hz)")
+        {
+            bool ok = false;
+
+            int freq = meta[i + 1].toInt(&ok);
+
+            if(ok)
+            {
+                result.accFrequency = freq;
+            }
+
+            break;
+        }
+    }
+
 
     // Header row
     if(!in.atEnd())
@@ -591,6 +644,7 @@ void MainWindow::setupFFTPlot(QCustomPlot *plot, const QString &xLabel)
 
     QColor neonGreen(0, 255, 150);
     QColor softGreen(150, 255, 180);
+    QColor tempColor(255, 255, 100);
 
     plot->xAxis->setLabel(xLabel);
     plot->yAxis->setLabel("Amplitude(g)");
@@ -618,9 +672,8 @@ void MainWindow::setupFFTPlot(QCustomPlot *plot, const QString &xLabel)
     plot->xAxis->grid()->setSubGridVisible(true);
     plot->yAxis->grid()->setSubGridVisible(true);
 
-    // ---------- ADD EMPTY GRAPH ----------
-    plot->addGraph();
-    plot->graph(0)->setPen(QPen(neonGreen, 1));
+    // ---------- ADD PEN  ----------
+    plot->graph(0)->setPen(QPen(tempColor, 1));
 
     // ---------- INTERACTIONS ----------
     plot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
@@ -684,16 +737,15 @@ void MainWindow::initializeAllPlots()
     QColor tempColor(255, 255, 100);
     QColor pressureColor(0, 255, 220);
 
-    int samplingFreq = ui->spinBox_samplingfrequency->value();
-
     QString adxlFreqLabel;
 
-    if (samplingFreq > 0)
+    if(accFrequency > 0)
     {
-        int samplePeriodUS = 1000000 / samplingFreq;
+        double samplePeriodUS = 1000000.0 / accFrequency;
 
-        adxlFreqLabel = QString("Sample Number (1 Sample = %1 µs)")
-                            .arg(samplePeriodUS);
+        adxlFreqLabel =
+                QString("Sample Number (1 Sample = %1 µs)")
+                .arg(samplePeriodUS, 0, 'f', 2);
     }
     else
     {
@@ -716,14 +768,18 @@ void MainWindow::initializeAllPlots()
               QString("%1").arg(adxlFreqLabel),
               "Az_100  (g)");
 
-    ui->customPlot_adxl_x->addGraph();
-    ui->customPlot_adxl_x->graph(0)->setPen(QPen(adxlColors[0], 1));
+    if(ui->customPlot_adxl_x->graphCount() == 0)
+        ui->customPlot_adxl_x->addGraph();
+    ui->customPlot_adxl_x->graph(0)->setPen(QPen(adxlColors[0],1));
 
-    ui->customPlot_adxl_y->addGraph();
-    ui->customPlot_adxl_y->graph(0)->setPen(QPen(adxlColors[1], 1));
 
-    ui->customPlot_adxl_z->addGraph();
-    ui->customPlot_adxl_z->graph(0)->setPen(QPen(adxlColors[2], 1));
+    if(ui->customPlot_adxl_y->graphCount() == 0)
+        ui->customPlot_adxl_y->addGraph();
+    ui->customPlot_adxl_y->graph(0)->setPen(QPen(adxlColors[1],1));
+
+    if(ui->customPlot_adxl_z->graphCount() == 0)
+        ui->customPlot_adxl_z->addGraph();
+    ui->customPlot_adxl_z->graph(0)->setPen(QPen(adxlColors[2],1));
 
     // ============================================================
     // SECOND SET OF ADXL PLOTS
@@ -741,14 +797,17 @@ void MainWindow::initializeAllPlots()
               QString("%1").arg(adxlFreqLabel),
               "Az_500  (g)");
 
-    ui->customPlot_adxl_x2->addGraph();
-    ui->customPlot_adxl_x2->graph(0)->setPen(QPen(adxlColors[0], 1));
+    if(ui->customPlot_adxl_x2->graphCount() == 0)
+        ui->customPlot_adxl_x2->addGraph();
+    ui->customPlot_adxl_x2->graph(0)->setPen(QPen(adxlColors[0],1));
 
-    ui->customPlot_adxl_y2->addGraph();
-    ui->customPlot_adxl_y2->graph(0)->setPen(QPen(adxlColors[1], 1));
+    if(ui->customPlot_adxl_y2->graphCount() == 0)
+        ui->customPlot_adxl_y2->addGraph();
+    ui->customPlot_adxl_y2->graph(0)->setPen(QPen(adxlColors[1],1));
 
-    ui->customPlot_adxl_z2->addGraph();
-    ui->customPlot_adxl_z2->graph(0)->setPen(QPen(adxlColors[2], 1));
+    if(ui->customPlot_adxl_z2->graphCount() == 0)
+        ui->customPlot_adxl_z2->addGraph();
+    ui->customPlot_adxl_z2->graph(0)->setPen(QPen(adxlColors[2],1));
 
     // ============================================================
     // TEMPERATURE
@@ -758,7 +817,10 @@ void MainWindow::initializeAllPlots()
               "Samples",
               "Temperature (°C)");
 
-    ui->customPlot_new_Temp->addGraph();
+    if(ui->customPlot_new_Temp->graphCount() == 0)
+        ui->customPlot_new_Temp->addGraph();
+    ui->customPlot_new_Temp->graph(0)->setPen(QPen(tempColor,1));
+
     ui->customPlot_new_Temp->graph(0)->setPen(QPen(tempColor, 1));
 
     // ============================================================
@@ -769,7 +831,9 @@ void MainWindow::initializeAllPlots()
               "Samples",
               "Pressure (mbar)");
 
-    ui->customPlot_new_Pressure->addGraph();
+    if(ui->customPlot_new_Pressure->graphCount() == 0)
+        ui->customPlot_new_Pressure->addGraph();
+
     ui->customPlot_new_Pressure->graph(0)->setPen(QPen(pressureColor, 1));
 
     // ============================================================
@@ -867,35 +931,6 @@ void MainWindow::initializeAllPlots()
         plot->replot();
     }
 
-    // ============================================================
-    // FFT PLOTS
-    // ============================================================
-
-    setupFFTPlot(ui->customPlot_adxl_x_FFT, "Ax_100 Frequency (Hz)");
-    setupFFTPlot(ui->customPlot_adxl_y_FFT, "Ay_100 Frequency (Hz)");
-    setupFFTPlot(ui->customPlot_adxl_z_FFT, "Az_100 Frequency (Hz)");
-
-    setupFFTPlot(ui->customPlot_adxl_x_FFT_2, "Ax_500 Frequency (Hz)");
-    setupFFTPlot(ui->customPlot_adxl_y_FFT_2, "Ay_500 Frequency (Hz)");
-    setupFFTPlot(ui->customPlot_adxl_z_FFT_2, "Az_500 Frequency (Hz)");
-
-    ui->customPlot_adxl_x_FFT->addGraph();
-    ui->customPlot_adxl_x_FFT->graph(0)->setPen(QPen(tempColor, 1));
-
-    ui->customPlot_adxl_y_FFT->addGraph();
-    ui->customPlot_adxl_y_FFT->graph(0)->setPen(QPen(tempColor, 1));
-
-    ui->customPlot_adxl_z_FFT->addGraph();
-    ui->customPlot_adxl_z_FFT->graph(0)->setPen(QPen(tempColor, 1));
-
-    ui->customPlot_adxl_x_FFT_2->addGraph();
-    ui->customPlot_adxl_x_FFT_2->graph(0)->setPen(QPen(tempColor, 1));
-
-    ui->customPlot_adxl_y_FFT_2->addGraph();
-    ui->customPlot_adxl_y_FFT_2->graph(0)->setPen(QPen(tempColor, 1));
-
-    ui->customPlot_adxl_z_FFT_2->addGraph();
-    ui->customPlot_adxl_z_FFT_2->graph(0)->setPen(QPen(tempColor, 1));
 
     // ============================================================
     // LIVE ADXL PLOTS
@@ -913,15 +948,16 @@ void MainWindow::initializeAllPlots()
               "Samples",
               "Az_100 (g)");
 
-    ui->customPlot_adxl_x_live->addGraph();
+    if(ui->customPlot_adxl_x_live->graphCount() == 0)
+        ui->customPlot_adxl_x_live->addGraph();
     ui->customPlot_adxl_x_live->graph(0)->setPen(QPen(adxlColors[0],1));
 
-
-    ui->customPlot_adxl_y_live->addGraph();
+    if(ui->customPlot_adxl_y_live->graphCount() == 0)
+        ui->customPlot_adxl_y_live->addGraph();
     ui->customPlot_adxl_y_live->graph(0)->setPen(QPen(adxlColors[1],1));
 
-
-    ui->customPlot_adxl_z_live->addGraph();
+    if(ui->customPlot_adxl_z_live->graphCount() == 0)
+        ui->customPlot_adxl_z_live->addGraph();
     ui->customPlot_adxl_z_live->graph(0)->setPen(QPen(adxlColors[2],1));
 
     // ============================================================
@@ -940,13 +976,16 @@ void MainWindow::initializeAllPlots()
               "Samples",
               "Az_500 (g)");
 
-    ui->customPlot_adxl_x2_live->addGraph();
+    if(ui->customPlot_adxl_x2_live->graphCount() == 0)
+        ui->customPlot_adxl_x2_live->addGraph();
     ui->customPlot_adxl_x2_live->graph(0)->setPen(QPen(adxlColors[0],1));
 
-    ui->customPlot_adxl_y2_live->addGraph();
+    if(ui->customPlot_adxl_y2_live->graphCount() == 0)
+        ui->customPlot_adxl_y2_live->addGraph();
     ui->customPlot_adxl_y2_live->graph(0)->setPen(QPen(adxlColors[1],1));
 
-    ui->customPlot_adxl_z2_live->addGraph();
+    if(ui->customPlot_adxl_z2_live->graphCount() == 0)
+        ui->customPlot_adxl_z2_live->addGraph();
     ui->customPlot_adxl_z2_live->graph(0)->setPen(QPen(adxlColors[2],1));
 
     // ============================================================
@@ -957,7 +996,10 @@ void MainWindow::initializeAllPlots()
               "Samples",
               "Temperature (°C)");
 
-    ui->customPlot_new_Temp_live->addGraph();
+    if(ui->customPlot_new_Temp_live->graphCount() == 0)
+        ui->customPlot_new_Temp_live->addGraph();
+    ui->customPlot_new_Temp_live->graph(0)->setPen(QPen(tempColor,1));
+
     ui->customPlot_new_Temp_live->graph(0)->setPen(QPen(tempColor,1));
 
     // ============================================================
@@ -968,7 +1010,10 @@ void MainWindow::initializeAllPlots()
               "Samples",
               "Pressure (mbar)");
 
-    ui->customPlot_new_Pressure_live->addGraph();
+    if(ui->customPlot_new_Pressure_live->graphCount() == 0)
+        ui->customPlot_new_Pressure_live->addGraph();
+    ui->customPlot_new_Pressure_live->graph(0)->setPen(QPen(pressureColor,1));
+
     ui->customPlot_new_Pressure_live->graph(0)->setPen(QPen(pressureColor,1));
 
 
@@ -1044,6 +1089,50 @@ void MainWindow::makePacket32UI(QList<QByteArray> &rawPacket32List)
              static_cast<quint8>(Item1[5]);
 
         this->accFrequency = accFrequency;
+
+        QString adxlFreqLabel;
+
+        if(accFrequency > 0)
+        {
+            double samplePeriodUS = 1000000.0 / accFrequency;
+
+            adxlFreqLabel =
+                    QString("Sample Number (1 Sample = %1 µs)")
+                    .arg(samplePeriodUS, 0, 'f', 2);
+        }
+        else
+        {
+            adxlFreqLabel = "Sample Number";
+        }
+
+        // Updating x axis lables start -----------------------------
+        setupPlot(ui->customPlot_adxl_x,
+                  QString("%1").arg(adxlFreqLabel),
+                  "Ax_100 (g)",1);
+
+        setupPlot(ui->customPlot_adxl_y,
+                  QString("%1").arg(adxlFreqLabel),
+                  "Ay_100  (g)",1);
+
+        setupPlot(ui->customPlot_adxl_z,
+                  QString("%1").arg(adxlFreqLabel),
+                  "Az_100  (g)",1);
+
+
+
+        setupPlot(ui->customPlot_adxl_x2,
+                  QString("%1").arg(adxlFreqLabel),
+                  "Ax_500  (g)",1);
+
+        setupPlot(ui->customPlot_adxl_y2,
+                  QString("%1").arg(adxlFreqLabel),
+                  "Ay_500  (g)",1);
+
+        setupPlot(ui->customPlot_adxl_z2,
+                  QString("%1").arg(adxlFreqLabel),
+                  "Az_500  (g)",1);
+
+        // Updating x axis lables end -----------------------------
 
         // Bytes extraction
         QByteArray startTimeBytes = Item1.mid(20,6);
@@ -2353,6 +2442,7 @@ void MainWindow::on_pushButton_clearPlots_clicked()
 
     writeToNotes("All log plots are cleared.");
 }
+
 void MainWindow::on_pushButton_fitToScreen_fft_clicked()
 {
     QList<QCustomPlot*> allPlots = {
@@ -2366,31 +2456,28 @@ void MainWindow::on_pushButton_fitToScreen_fft_clicked()
 
     };
 
-    for (QCustomPlot *plot : allPlots)
+    for(QCustomPlot *plot : allPlots)
     {
-        if (!plot) continue;
+        if(!plot)
+            continue;
 
         bool hasData = false;
 
-        for (int i = 0; i < plot->graphCount(); ++i)
+        for(int i = 0; i < plot->graphCount(); ++i)
         {
-            if (plot->graph(i)->dataCount() > 0)
+            if(plot->graph(i)->dataCount() > 0)
             {
                 hasData = true;
                 break;
             }
         }
 
-        if (!hasData)
-        {
-            qDebug() << "Fit to screen failed: No data!";
-            return;
-        }
+        if(!hasData)
+            continue;
 
-        plot->xAxis->rescale(true);
-        plot->yAxis->rescale(true);
 
-        plot->replot();
+        plot->rescaleAxes(true);
+        plot->replot(QCustomPlot::rpQueuedReplot);
     }
 }
 
@@ -3424,6 +3511,47 @@ void MainWindow::on_pushButton_openFiles_clicked()
     {
         CsvPlotData data =
                 watcher->result();
+
+        accFrequency = data.accFrequency;
+
+        QString adxlFreqLabel;
+
+        if(accFrequency > 0)
+        {
+            double samplePeriodUS = 1000000.0 / accFrequency;
+
+            adxlFreqLabel =
+                    QString("Sample Number (1 Sample = %1 µs)")
+                    .arg(samplePeriodUS, 0, 'f', 2);
+        }
+        else
+        {
+            adxlFreqLabel = "Sample Number";
+        }
+
+        setupPlot(ui->customPlot_adxl_x,
+                  adxlFreqLabel,
+                  "Ax_100 (g)",1);
+
+        setupPlot(ui->customPlot_adxl_y,
+                  adxlFreqLabel,
+                  "Ay_100 (g)",1);
+
+        setupPlot(ui->customPlot_adxl_z,
+                  adxlFreqLabel,
+                  "Az_100 (g)",1);
+
+        setupPlot(ui->customPlot_adxl_x2,
+                  adxlFreqLabel,
+                  "Ax_500 (g)",1);
+
+        setupPlot(ui->customPlot_adxl_y2,
+                  adxlFreqLabel,
+                  "Ay_500 (g)",1);
+
+        setupPlot(ui->customPlot_adxl_z2,
+                  adxlFreqLabel,
+                  "Az_500 (g)",1);
 
         watcher->deleteLater();
 
