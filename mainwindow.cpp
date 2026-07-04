@@ -1272,38 +1272,38 @@ void MainWindow::makePacket2048AdxlTempListPressureList(
             quint16 x1 =
                     (static_cast<quint8>(adxlBytes[i+1]) << 8) |
                     static_cast<quint8>(adxlBytes[i]);
-            float x1f =  (x1 / 65535.0 ) * 5.12;
+            double x1f =  (x1 / 65535.0 ) * 5.12;
             x1f = ( x1f - 1.65 ) / 0.012;
 
             quint16 y1 =
                     (static_cast<quint8>(adxlBytes[i+3]) << 8) |
                     static_cast<quint8>(adxlBytes[i+2]);
-            float y1f =  (y1 / 65535.0 ) * 5.12;
+            double y1f =  (y1 / 65535.0 ) * 5.12;
             y1f = ( y1f - 1.65 ) / 0.012;
 
             quint16 z1 =
                     (static_cast<quint8>(adxlBytes[i+5]) << 8) |
                     static_cast<quint8>(adxlBytes[i+4]);
-            float z1f =  (z1 / 65535.0 ) * 5.12;
+            double z1f =  (z1 / 65535.0 ) * 5.12;
             z1f = ( z1f - 1.65 ) / 0.012;
 
 
             quint16 x2 =
                     (static_cast<quint8>(adxlBytes[i+7]) << 8) |
                     static_cast<quint8>(adxlBytes[i+6]);
-            float x2f =  (x2 / 65535.0 ) * 5.12;
+            double x2f =  (x2 / 65535.0 ) * 5.12;
             x2f = ( x2f - 1.65 ) / 0.0025;
 
             quint16 y2 =
                     (static_cast<quint8>(adxlBytes[i+9]) << 8) |
                     static_cast<quint8>(adxlBytes[i+8]);
-            float y2f =  (y2 / 65535.0 ) * 5.12;
+            double y2f =  (y2 / 65535.0 ) * 5.12;
             y2f = ( y2f - 1.65 ) / 0.0025;
 
             quint16 z2 =
                     (static_cast<quint8>(adxlBytes[i+11]) << 8) |
                     static_cast<quint8>(adxlBytes[i+10]);
-            float z2f =  (z2 / 65535.0 ) * 5.12;
+            double z2f =  (z2 / 65535.0 ) * 5.12;
             z2f = ( z2f - 1.65 ) / 0.0025;
 
             sampleIndex.append(globalSample++);
@@ -1331,7 +1331,7 @@ void MainWindow::makePacket2048AdxlTempListPressureList(
         if(tempBytes.size() < 4)
             continue;
 
-        float tempValue =
+        double tempValue =
                 bytesToFloatMSB(tempBytes);
 
         tempIndex.append(i + 1);
@@ -1353,7 +1353,7 @@ void MainWindow::makePacket2048AdxlTempListPressureList(
         if(pressureBytes.size() < 4)
             continue;
 
-        float pressureValue =
+        double pressureValue =
                 bytesToFloatMSB(pressureBytes);
 
         pressureValue = pressureValue / 100.0;
@@ -2746,7 +2746,7 @@ bool MainWindow::saveAdxlToCsv(
     out.setRealNumberNotation(
                 QTextStream::FixedNotation);
 
-    out.setRealNumberPrecision(3);
+    out.setRealNumberPrecision(6);
 
     //----------------------------------------------------
     // Metadata
@@ -3094,7 +3094,7 @@ void MainWindow::startLiveCsv()
     liveCsvStream.setRealNumberNotation(
                 QTextStream::FixedNotation);
 
-    liveCsvStream.setRealNumberPrecision(3);
+    liveCsvStream.setRealNumberPrecision(6);
 
     //-------------------------------------------------------
     // Header
