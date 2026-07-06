@@ -159,6 +159,18 @@ public:
             QVector<double> &display,
             int currentWriteIndex);
 
+    // FFT Concurrent
+    struct FFTResult
+    {
+        QVector<double> freq;
+        QVector<double> mag;
+        QCustomPlot *plot;
+    };
+
+    FFTResult computeFFT(const QVector<double>& signal,
+                                     double Fs,
+                                     QCustomPlot *plot);
+
 
 private slots:
         void onPortSelected(const QString &portName);
@@ -207,6 +219,9 @@ private slots:
 
         void removeDC(QVector<double> &x);
 
+        // The below function is not calling (Because due to multithreading we are using computeFFT)
+        // : just keeping it for reference cuz it just need signal vector
+        // of time domain, and Fs computes from sample and our QCustomPlot
         void computeAndPlotFFT(const QVector<double>& signal,
                                double Fs,
                                QCustomPlot *plot);
@@ -389,8 +404,7 @@ private:
 
      // FFT Offline loading
      CsvPlotData loadedCsvData;
-     bool csvLoaded = false;
-
+     bool csvLoaded = false;         
 
 };  
 #endif // MAINWINDOW_H

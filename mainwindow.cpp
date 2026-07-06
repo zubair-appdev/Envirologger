@@ -3213,6 +3213,26 @@ void MainWindow::updateDisplayBuffer(
               display.begin() + tailSize);
 }
 
+MainWindow::FFTResult MainWindow::computeFFT(const QVector<double>& signal,
+                                 double Fs,
+                                 QCustomPlot *plot)
+{
+    FFTResult result;
+    result.plot = plot;
+
+    QVector<double> processed = signal;
+
+    removeDC(processed);
+    applyHanning(processed);
+
+    performFFT(processed,
+               result.mag,
+               result.freq,
+               Fs);
+
+    return result;
+}
+
 void MainWindow::applyHanning(QVector<double> &signal)
 {
     const int N = signal.size();
@@ -3886,6 +3906,8 @@ void MainWindow::on_pushButton_LoadFFT_clicked()
         return;
     }
 
+    QList<QPair<QVector<double>, QCustomPlot*>> fftJobs;
+
     //-------------------------------------------------------
     // Loading Dialog
     //-------------------------------------------------------
@@ -3900,59 +3922,100 @@ void MainWindow::on_pushButton_LoadFFT_clicked()
 
     if(allSelected || ui->checkBox_Ax_100->isChecked())
     {
-        computeAndPlotFFT(ax100,
-                          sampleRate,
-                          ui->customPlot_adxl_x_FFT);
+        fftJobs.append({ax100,
+                          ui->customPlot_adxl_x_FFT});
     }
 
     if(allSelected || ui->checkBox_Ay_100->isChecked())
     {
-        computeAndPlotFFT(ay100,
-                          sampleRate,
-                          ui->customPlot_adxl_y_FFT);
+        fftJobs.append({ay100,
+                          ui->customPlot_adxl_y_FFT});
     }
 
     if(allSelected || ui->checkBox_Az_100->isChecked())
     {
-        computeAndPlotFFT(az100,
-                          sampleRate,
-                          ui->customPlot_adxl_z_FFT);
+        fftJobs.append({az100,
+                          ui->customPlot_adxl_z_FFT});
     }
 
     if(allSelected || ui->checkBox_Ax_500->isChecked())
     {
-        computeAndPlotFFT(ax500,
-                          sampleRate,
-                          ui->customPlot_adxl_x_FFT_2);
+        fftJobs.append({ax500,
+                          ui->customPlot_adxl_x_FFT_2});
     }
 
     if(allSelected || ui->checkBox_Ay_500->isChecked())
     {
-        computeAndPlotFFT(ay500,
-                          sampleRate,
-                          ui->customPlot_adxl_y_FFT_2);
+        fftJobs.append({ay500,
+                          ui->customPlot_adxl_y_FFT_2});
     }
 
     if(allSelected || ui->checkBox_Az_500->isChecked())
     {
-        computeAndPlotFFT(az500,
-                          sampleRate,
-                          ui->customPlot_adxl_z_FFT_2);
+        fftJobs.append({az500,
+                          ui->customPlot_adxl_z_FFT_2});
     }
 
-    qDebug() << (useLoadedCsv ?
-                 "FFT generated from Loaded CSV." :
-                 "FFT generated from Live Acquisition.");
+    QString fftSource =
+            useLoadedCsv ?
+            "FFT generated from Loaded CSV." :
+            "FFT generated from Live Acquisition.";
 
-    //-------------------------------------------------------
-    // Close Dialog
-    //-------------------------------------------------------
+    qDebug() << fftSource;
 
-    if(fftDialog)
+    writeToNotes(fftSource);
+
+    auto* fftWatcher = new QFutureWatcher<QList<FFTResult>>(this);
+
+    connect(fftWatcher,
+            &QFutureWatcher<QList<FFTResult>>::finished,
+            this,
+            [=]()
     {
+        QList<FFTResult> results =
+                fftWatcher->result();
+
+        for(const FFTResult &r : results)
+        {
+            if(!r.plot)
+                continue;
+
+            r.plot->graph(0)->setData(r.freq,
+                                      r.mag);
+
+            r.plot->xAxis->setRange(0,
+                                    sampleRate/2);
+
+            r.plot->yAxis->rescale();
+
+            r.plot->replot(
+                QCustomPlot::rpQueuedReplot);
+        }
+
         fftDialog->close();
         fftDialog->deleteLater();
-    }
+
+        fftWatcher->deleteLater();
+
+    });
+
+    fftWatcher->setFuture(
+        QtConcurrent::run(
+            [=]()
+    {
+        QList<FFTResult> results;
+
+        for(const auto &job : fftJobs)
+        {
+            results.append(
+                computeFFT(job.first,
+                           sampleRate,
+                           job.second));
+        }
+
+        return results;
+    }));
+
 }
 
 void MainWindow::on_pushButton_clearFFTplots_clicked()

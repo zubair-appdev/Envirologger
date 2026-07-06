@@ -87,3 +87,6 @@
 
 #Ver 3.9 ---------------------------------------------------------------------------------------------
 - Set precision for 6 decimals and changed xlf float to double.
+
+#Ver 4.0
+- Moved FFT Loading in a separate concurrent thread and changed exe name from Envirologger to DSVDL.
