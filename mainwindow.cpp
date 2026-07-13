@@ -245,6 +245,7 @@ void MainWindow::refreshPorts()
         qDebug() << "Auto connected to"
                  << detectedPort;
     }
+
 }
 
 
@@ -647,7 +648,7 @@ void MainWindow::setupFFTPlot(QCustomPlot *plot, const QString &xLabel)
     QColor tempColor(255, 255, 100);
 
     plot->xAxis->setLabel(xLabel);
-    plot->yAxis->setLabel("Amplitude(g)");
+    plot->yAxis->setLabel("Magnitude(g)");
     plot->legend->setVisible(false);
 
     // ---- Bold Axis Labels ----
@@ -4057,3 +4058,191 @@ void MainWindow::on_pushButton_clearFFTplots_clicked()
 
     qDebug() << "FFT plots cleared.";
 }
+
+
+void MainWindow::on_pushButton_saveFFTplots_clicked()
+{
+    writeToNotes(QString::number(accFrequency)+" :accFrequency in saveFFTplots button");
+    qDebug()<<accFrequency<<" :accFrequency";
+
+    //-------------------------------------------------------
+    // Check FFT Data Available
+    //-------------------------------------------------------
+
+    QList<QCustomPlot*> fftPlots =
+    {
+        ui->customPlot_adxl_x_FFT,
+        ui->customPlot_adxl_y_FFT,
+        ui->customPlot_adxl_z_FFT,
+        ui->customPlot_adxl_x_FFT_2,
+        ui->customPlot_adxl_y_FFT_2,
+        ui->customPlot_adxl_z_FFT_2
+    };
+
+    bool hasFFTData = false;
+
+    for(QCustomPlot *plot : fftPlots)
+    {
+        if(plot &&
+           plot->graphCount() > 0 &&
+           plot->graph(0)->dataCount() > 0)
+        {
+            hasFFTData = true;
+            break;
+        }
+    }
+
+    if(!hasFFTData)
+    {
+        QMessageBox::information(this,
+                                 "FFT",
+                                 "No FFT plot data available.\n"
+                                 "Please load or generate FFT before saving.");
+        return;
+    }
+
+    //-------------------------------------------------------
+    // Create Folder
+    //-------------------------------------------------------
+
+    QString desktop =
+            QStandardPaths::writableLocation(
+                QStandardPaths::DesktopLocation);
+
+    QString folder =
+            desktop + "/ADXL_FFT";
+
+    QDir().mkpath(folder);
+
+    //-------------------------------------------------------
+    // File Name
+    //-------------------------------------------------------
+
+    QString fileName =
+            folder +
+            "/FFT_Data_" +
+            QDateTime::currentDateTime()
+            .toString("yyyyMMdd_hhmmss") +
+            ".csv";
+
+    QFile file(fileName);
+
+    if(!file.open(QIODevice::WriteOnly | QIODevice::Text))
+    {
+        QMessageBox::warning(this,
+                             "FFT",
+                             "Unable to create CSV.");
+        return;
+    }
+
+    QTextStream out(&file);
+    out.setRealNumberNotation(QTextStream::FixedNotation);
+    out.setRealNumberPrecision(6);
+
+    QDialog *savingDialog =
+            createPleaseWaitDialog(
+                "⏳ Saving FFT CSV...");
+
+    //-------------------------------------------------------
+    // Plot List
+    //-------------------------------------------------------
+
+    QList<QPair<QString,QCustomPlot*>> plots =
+    {
+        {"Ax_100", ui->customPlot_adxl_x_FFT},
+        {"Ay_100", ui->customPlot_adxl_y_FFT},
+        {"Az_100", ui->customPlot_adxl_z_FFT},
+        {"Ax_500", ui->customPlot_adxl_x_FFT_2},
+        {"Ay_500", ui->customPlot_adxl_y_FFT_2},
+        {"Az_500", ui->customPlot_adxl_z_FFT_2}
+    };
+
+    //-------------------------------------------------------
+    // Header
+    //-------------------------------------------------------
+
+    for(const auto &p : plots)
+    {
+        out << p.first
+            << " Frequency (Hz),"
+            << p.first
+            << " Magnitude (g),";
+    }
+
+    out << "\n";
+
+    //-------------------------------------------------------
+    // Find Maximum Rows
+    //-------------------------------------------------------
+
+    int maxRows = 0;
+
+    for(const auto &p : plots)
+    {
+        if(p.second &&
+           p.second->graphCount() > 0)
+        {
+            maxRows = qMax(maxRows,
+                           p.second->graph(0)->dataCount());
+        }
+    }
+
+    //-------------------------------------------------------
+    // Write Data
+    //-------------------------------------------------------
+
+    for(int row = 0; row < maxRows; row++)
+    {
+        for(const auto &p : plots)
+        {
+            if(p.second &&
+               p.second->graphCount() > 0 &&
+               row < p.second->graph(0)->dataCount())
+            {
+                auto it =
+                        p.second->graph(0)->data()->at(row);
+
+                out << it->key << ","
+                    << it->value << ",";
+            }
+            else
+            {
+                out << ",,";
+            }
+        }
+
+        out << "\n";
+
+        if(row > 0 && row % 50000 == 0)
+           {
+               out.flush();
+               file.flush();
+
+               qApp->processEvents();
+
+               qDebug() << "FFT Rows Written:" << row;
+           }
+    }
+
+    out.flush();
+    file.flush();
+    file.close();
+
+    if(savingDialog)
+    {
+        savingDialog->close();
+        savingDialog->deleteLater();
+        savingDialog = nullptr;
+    }
+
+    //-------------------------------------------------------
+    // Message
+    //-------------------------------------------------------
+
+    writeToNotes("FFT CSV Saved : " + fileName);
+
+    QMessageBox::information(this,
+                             "Success",
+                             "FFT CSV saved successfully.");
+}
+

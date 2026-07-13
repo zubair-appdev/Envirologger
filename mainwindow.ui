@@ -1425,43 +1425,7 @@
               </sizepolicy>
              </property>
              <layout class="QGridLayout" name="gridLayout_8">
-              <item row="0" column="3">
-               <widget class="QCheckBox" name="checkBox_Ax_100">
-                <property name="font">
-                 <font>
-                  <pointsize>10</pointsize>
-                 </font>
-                </property>
-                <property name="text">
-                 <string>Ax_100</string>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="5">
-               <widget class="QCheckBox" name="checkBox_Az_100">
-                <property name="font">
-                 <font>
-                  <pointsize>10</pointsize>
-                 </font>
-                </property>
-                <property name="text">
-                 <string>Az_100</string>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="8">
-               <widget class="QCheckBox" name="checkBox_Az_500">
-                <property name="font">
-                 <font>
-                  <pointsize>10</pointsize>
-                 </font>
-                </property>
-                <property name="text">
-                 <string>Az_500</string>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="6">
+              <item row="0" column="7">
                <widget class="QCheckBox" name="checkBox_Ax_500">
                 <property name="font">
                  <font>
@@ -1473,15 +1437,15 @@
                 </property>
                </widget>
               </item>
-              <item row="0" column="4">
-               <widget class="QCheckBox" name="checkBox_Ay_100">
+              <item row="0" column="9">
+               <widget class="QCheckBox" name="checkBox_Az_500">
                 <property name="font">
                  <font>
                   <pointsize>10</pointsize>
                  </font>
                 </property>
                 <property name="text">
-                 <string>Ay_100</string>
+                 <string>Az_500</string>
                 </property>
                </widget>
               </item>
@@ -1503,19 +1467,49 @@
                 </property>
                </widget>
               </item>
-              <item row="0" column="7">
-               <widget class="QCheckBox" name="checkBox_Ay_500">
+              <item row="0" column="3">
+               <widget class="QCheckBox" name="checkBox_All">
                 <property name="font">
                  <font>
                   <pointsize>10</pointsize>
                  </font>
                 </property>
                 <property name="text">
-                 <string>Ay_500</string>
+                 <string>All</string>
                 </property>
                </widget>
               </item>
-              <item row="0" column="9">
+              <item row="0" column="11">
+               <widget class="QPushButton" name="pushButton_clearFFTplots">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="font">
+                 <font>
+                  <pointsize>10</pointsize>
+                 </font>
+                </property>
+                <property name="text">
+                 <string>Clear Plots</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="6">
+               <widget class="QCheckBox" name="checkBox_Az_100">
+                <property name="font">
+                 <font>
+                  <pointsize>10</pointsize>
+                 </font>
+                </property>
+                <property name="text">
+                 <string>Az_100</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="10">
                <widget class="QPushButton" name="pushButton_clearPoints_fft">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
@@ -1551,20 +1545,44 @@
                 </property>
                </widget>
               </item>
-              <item row="0" column="2">
-               <widget class="QCheckBox" name="checkBox_All">
+              <item row="0" column="5">
+               <widget class="QCheckBox" name="checkBox_Ay_100">
                 <property name="font">
                  <font>
                   <pointsize>10</pointsize>
                  </font>
                 </property>
                 <property name="text">
-                 <string>All</string>
+                 <string>Ay_100</string>
                 </property>
                </widget>
               </item>
-              <item row="0" column="10">
-               <widget class="QPushButton" name="pushButton_clearFFTplots">
+              <item row="0" column="4">
+               <widget class="QCheckBox" name="checkBox_Ax_100">
+                <property name="font">
+                 <font>
+                  <pointsize>10</pointsize>
+                 </font>
+                </property>
+                <property name="text">
+                 <string>Ax_100</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="8">
+               <widget class="QCheckBox" name="checkBox_Ay_500">
+                <property name="font">
+                 <font>
+                  <pointsize>10</pointsize>
+                 </font>
+                </property>
+                <property name="text">
+                 <string>Ay_500</string>
+                </property>
+               </widget>
+              </item>
+              <item row="0" column="2">
+               <widget class="QPushButton" name="pushButton_saveFFTplots">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
                   <horstretch>0</horstretch>
@@ -1577,7 +1595,7 @@
                  </font>
                 </property>
                 <property name="text">
-                 <string>Clear Plots</string>
+                 <string>Save FFT</string>
                 </property>
                </widget>
               </item>

@@ -245,6 +245,9 @@ private slots:
 
        void on_pushButton_clearFFTplots_clicked();
 
+       void on_pushButton_saveFFTplots_clicked();
+
+
 signals:
     void sendMsgId(quint8 id);
 
