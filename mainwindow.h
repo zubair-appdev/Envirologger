@@ -171,6 +171,16 @@ public:
                                      double Fs,
                                      QCustomPlot *plot);
 
+    // FFT Saving Concurrent
+    struct FFTCsvData
+    {
+        QString name;
+        QVector<double> freq;
+        QVector<double> mag;
+    };
+
+
+
 
 private slots:
         void onPortSelected(const QString &portName);
@@ -247,6 +257,8 @@ private slots:
 
        void on_pushButton_saveFFTplots_clicked();
 
+
+       void on_pushButton_clearLivePlots_clicked();
 
 signals:
     void sendMsgId(quint8 id);

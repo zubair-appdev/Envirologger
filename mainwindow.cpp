@@ -3201,16 +3201,29 @@ void MainWindow::updateDisplayBuffer(
         QVector<double> &display,
         int currentWriteIndex)
 {
-    const int tailSize = LIVE_WINDOW - currentWriteIndex;
+    int startIndex;
+
+    if(ui->checkBox_oscilloscopeMode->isChecked())
+    {
+        // Temporary fixed trigger point
+        startIndex = LIVE_WINDOW / 4;
+    }
+    else
+    {
+        // Existing behaviour
+        startIndex = currentWriteIndex;
+    }
+
+    const int tailSize = LIVE_WINDOW - startIndex;
 
     // Tail
-    std::copy(source.begin() + currentWriteIndex,
+    std::copy(source.begin() + startIndex,
               source.end(),
               display.begin());
 
     // Head
     std::copy(source.begin(),
-              source.begin() + currentWriteIndex,
+              source.begin() + startIndex,
               display.begin() + tailSize);
 }
 
@@ -4125,24 +4138,6 @@ void MainWindow::on_pushButton_saveFFTplots_clicked()
             .toString("yyyyMMdd_hhmmss") +
             ".csv";
 
-    QFile file(fileName);
-
-    if(!file.open(QIODevice::WriteOnly | QIODevice::Text))
-    {
-        QMessageBox::warning(this,
-                             "FFT",
-                             "Unable to create CSV.");
-        return;
-    }
-
-    QTextStream out(&file);
-    out.setRealNumberNotation(QTextStream::FixedNotation);
-    out.setRealNumberPrecision(6);
-
-    QDialog *savingDialog =
-            createPleaseWaitDialog(
-                "⏳ Saving FFT CSV...");
-
     //-------------------------------------------------------
     // Plot List
     //-------------------------------------------------------
@@ -4157,92 +4152,163 @@ void MainWindow::on_pushButton_saveFFTplots_clicked()
         {"Az_500", ui->customPlot_adxl_z_FFT_2}
     };
 
-    //-------------------------------------------------------
-    // Header
-    //-------------------------------------------------------
+    // Collecting Data before QtConcurrent
+
+    QList<FFTCsvData> fftData;
 
     for(const auto &p : plots)
     {
-        out << p.first
-            << " Frequency (Hz),"
-            << p.first
-            << " Magnitude (g),";
-    }
+        FFTCsvData data;
+        data.name = p.first;
 
-    out << "\n";
-
-    //-------------------------------------------------------
-    // Find Maximum Rows
-    //-------------------------------------------------------
-
-    int maxRows = 0;
-
-    for(const auto &p : plots)
-    {
         if(p.second &&
            p.second->graphCount() > 0)
         {
-            maxRows = qMax(maxRows,
-                           p.second->graph(0)->dataCount());
+            auto graphData = p.second->graph(0)->data();
+
+            data.freq.reserve(graphData->size());
+            data.mag.reserve(graphData->size());
+
+            for(auto it = graphData->constBegin();
+                it != graphData->constEnd();
+                ++it)
+            {
+                data.freq.append(it->key);
+                data.mag.append(it->value);
+            }
         }
+
+        fftData.append(std::move(data));
     }
 
-    //-------------------------------------------------------
-    // Write Data
-    //-------------------------------------------------------
 
-    for(int row = 0; row < maxRows; row++)
+    QDialog *savingDialog =
+            createPleaseWaitDialog(
+                "⏳ Saving FFT CSV...");
+
+    auto *watcher =
+            new QFutureWatcher<bool>(this);
+
+    connect(watcher,
+            &QFutureWatcher<bool>::finished,
+            this,
+            [=]()
     {
-        for(const auto &p : plots)
-        {
-            if(p.second &&
-               p.second->graphCount() > 0 &&
-               row < p.second->graph(0)->dataCount())
-            {
-                auto it =
-                        p.second->graph(0)->data()->at(row);
+        savingDialog->close();
 
-                out << it->key << ","
-                    << it->value << ",";
-            }
-            else
-            {
-                out << ",,";
-            }
+        watcher->deleteLater();
+
+        writeToNotes("FFT CSV Saved : " + fileName);
+
+        QMessageBox::information(this,
+                                 "Success",
+                                 "FFT CSV saved successfully.");
+    });
+
+
+    watcher->setFuture(
+    QtConcurrent::run([=]() -> bool
+    {
+        QFile file(fileName);
+
+        if(!file.open(QIODevice::WriteOnly | QIODevice::Text))
+            return false;
+
+        QTextStream out(&file);
+        out.setRealNumberNotation(QTextStream::FixedNotation);
+        out.setRealNumberPrecision(6);
+
+        //-------------------------------------------------------
+        // Header
+        //-------------------------------------------------------
+
+        for(const auto &d : fftData)
+        {
+            out << d.name
+                << " Frequency (Hz),"
+                << d.name
+                << " Magnitude (g),";
         }
 
         out << "\n";
 
-        if(row > 0 && row % 50000 == 0)
-           {
-               out.flush();
-               file.flush();
+        //-------------------------------------------------------
+        // Max Rows
+        //-------------------------------------------------------
 
-               qApp->processEvents();
+        int maxRows = 0;
 
-               qDebug() << "FFT Rows Written:" << row;
-           }
-    }
+        for(const auto &d : fftData)
+            maxRows = qMax(maxRows, d.freq.size());
 
-    out.flush();
-    file.flush();
-    file.close();
+        //-------------------------------------------------------
+        // Write
+        //-------------------------------------------------------
 
-    if(savingDialog)
-    {
-        savingDialog->close();
-        savingDialog->deleteLater();
-        savingDialog = nullptr;
-    }
+        for(int row = 0; row < maxRows; ++row)
+        {
+            for(const auto &d : fftData)
+            {
+                if(row < d.freq.size())
+                {
+                    out << d.freq[row] << ","
+                        << d.mag[row] << ",";
+                }
+                else
+                {
+                    out << ",,";
+                }
+            }
 
-    //-------------------------------------------------------
-    // Message
-    //-------------------------------------------------------
+            out << "\n";
 
-    writeToNotes("FFT CSV Saved : " + fileName);
+            if(row > 0 && row % 20000 == 0)
+            {
+                out.flush();
+                file.flush();
+            }
+        }
 
-    QMessageBox::information(this,
-                             "Success",
-                             "FFT CSV saved successfully.");
+        out.flush();
+        file.flush();
+        file.close();
+
+        return true;
+    }));
+
 }
 
+
+void MainWindow::on_pushButton_clearLivePlots_clicked()
+{
+    //-------------------------------------------------------
+    // Clear All Live Graph Data
+    //-------------------------------------------------------
+
+    for(auto plot : livePlots)
+    {
+        if(plot && plot->graphCount() > 0)
+        {
+            plot->graph(0)->data()->clear();
+        }
+    }
+
+    //-------------------------------------------------------
+    // Restore Axis Ranges
+    //-------------------------------------------------------
+
+    on_pushButton_fitToScreenLive_clicked();
+
+    //-------------------------------------------------------
+    // Replot
+    //-------------------------------------------------------
+
+    for(auto plot : livePlots)
+    {
+        plot->replot(QCustomPlot::rpQueuedReplot);
+    }
+
+    writeToNotes("Live plots cleared.");
+
+    qDebug() << "Live plots cleared.";
+}

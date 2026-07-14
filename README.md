@@ -96,3 +96,6 @@
 
 #Ver 4.2 -------------------------------------------------------------------------------------------
 - Here save FFT Plots implemented and FFT y axis label changed.
+
+#Ver 4.3 -------------------------------------------------------------------------------------------
+- We added clear live plots [+] FFT saving moved to QtConcurrent [+] Pure Oscilloscope effect with StartIndex Hooked.
