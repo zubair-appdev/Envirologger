@@ -99,3 +99,7 @@
 
 #Ver 4.3 -------------------------------------------------------------------------------------------
 - We added clear live plots [+] FFT saving moved to QtConcurrent [+] Pure Oscilloscope effect with StartIndex Hooked.
+
+#Ver 4.4 ------------------------------------------------------------------------------------------
+- Automatic port detection logic improved.
+- Peak lineEdits clear implemented.

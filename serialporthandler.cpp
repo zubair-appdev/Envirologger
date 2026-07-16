@@ -52,6 +52,12 @@ void serialPortHandler::setPORTNAME(const QString &portName)
 }
 QString serialPortHandler::detectDevicePort()
 {
+    // Already connected to the device
+        if (serial->isOpen())
+        {
+            return serial->portName();
+        }
+
     foreach (const QSerialPortInfo &info,
              QSerialPortInfo::availablePorts())
     {
@@ -75,9 +81,9 @@ QString serialPortHandler::detectDevicePort()
 
             tempSerial.write(packet);
 
-            if (tempSerial.waitForBytesWritten(500))
+            if (tempSerial.waitForBytesWritten(50))
             {
-                if (tempSerial.waitForReadyRead(1000))
+                if (tempSerial.waitForReadyRead(300))
                 {
                     QByteArray response =
                             tempSerial.readAll();

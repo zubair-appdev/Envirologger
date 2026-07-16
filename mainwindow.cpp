@@ -15,21 +15,6 @@ MainWindow::MainWindow(QWidget *parent)
     ui->dateTimeEdit->setDateTime(QDateTime(QDate(2026, 7, 1),
                                             QTime(0, 0, 0)));
 
-    QString detectedPort =
-                    serialObj->detectDevicePort();
-
-            if (!detectedPort.isEmpty())
-            {
-                ui->comboBox_ports
-                        ->setCurrentText(detectedPort);
-
-                serialObj->setPORTNAME(detectedPort);
-
-
-                qDebug() << "Auto connected to"
-                         << detectedPort;
-            }
-
 
     ui->spinBox_logTime->setRange(INT_MIN, INT_MAX);
     ui->spinBox_samplingfrequency->setRange(INT_MIN, INT_MAX);
@@ -47,6 +32,24 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->comboBox_ports,SIGNAL(activated(const QString &)),this,SLOT(onPortSelected(const QString &)));
 
     connect(this,&MainWindow::sendMsgId,serialObj,&serialPortHandler::recvMsgId);
+
+
+    QString detectedPort =
+                    serialObj->detectDevicePort();
+
+            if (!detectedPort.isEmpty())
+            {
+
+                ui->comboBox_ports
+                        ->setCurrentText(detectedPort);
+
+                serialObj->setPORTNAME(detectedPort);
+
+
+                qDebug() << "Auto connected to"
+                         << detectedPort;
+            }
+
     //writeToNotes from serial class
     connect(serialObj,&serialPortHandler::executeWriteToNotes,this,&MainWindow::writeToNotes);
 
@@ -154,6 +157,15 @@ MainWindow::MainWindow(QWidget *parent)
     header->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     header->setSectionResizeMode(1, QHeaderView::Stretch);
     header->setSectionResizeMode(2, QHeaderView::Stretch);
+
+    // If any port doesn't send CHECK response
+    QTimer::singleShot(2000,this,[=](){
+        if(detectedPort.isEmpty())
+        {
+            QMessageBox::warning(this,"Not Connected","Port is not connected");
+        }
+    });
+
 }
 
 MainWindow::~MainWindow()
@@ -226,15 +238,15 @@ void MainWindow::refreshPorts()
 {
     qDebug() << "Refreshing ports...";
 
-    ui->comboBox_ports->clear();
-
     QStringList ports =
             serialObj->availablePorts();
 
-    ui->comboBox_ports->addItems(ports);
 
     QString detectedPort =
             serialObj->detectDevicePort();
+
+    ui->comboBox_ports->clear();
+    ui->comboBox_ports->addItems(ports);
 
     if (!detectedPort.isEmpty())
     {
@@ -245,7 +257,6 @@ void MainWindow::refreshPorts()
         qDebug() << "Auto connected to"
                  << detectedPort;
     }
-
 }
 
 
@@ -3247,6 +3258,27 @@ MainWindow::FFTResult MainWindow::computeFFT(const QVector<double>& signal,
     return result;
 }
 
+void MainWindow::clearPeakValues()
+{
+    peakAx100 = 0;
+    peakAy100 = 0;
+    peakAz100 = 0;
+
+    peakAx500 = 0;
+    peakAy500 = 0;
+    peakAz500 = 0;
+
+    peakPressure = 0;
+
+    ui->lineEdit_Ax_100_peak->clear();
+    ui->lineEdit_Ay_100_peak->clear();
+    ui->lineEdit_Az_100_peak->clear();
+    ui->lineEdit_Ax_500_peak->clear();
+    ui->lineEdit_Ay_500_peak->clear();
+    ui->lineEdit_Az_500_peak->clear();
+    ui->lineEdit_pressure_peak->clear();
+}
+
 void MainWindow::applyHanning(QVector<double> &signal)
 {
     const int N = signal.size();
@@ -3405,6 +3437,9 @@ void MainWindow::on_pushButton_startLive_clicked()
         QMessageBox::warning(this,"Error","Please Use Sample Number Below 30000");
         return;
     }
+
+    //Clearing previous peak values
+    clearPeakValues();
 
     responseTimer->start(2000);
 
@@ -4281,6 +4316,9 @@ void MainWindow::on_pushButton_saveFFTplots_clicked()
 
 void MainWindow::on_pushButton_clearLivePlots_clicked()
 {
+    // Clearing peak values
+    clearPeakValues();
+
     //-------------------------------------------------------
     // Clear All Live Graph Data
     //-------------------------------------------------------
@@ -4312,3 +4350,4 @@ void MainWindow::on_pushButton_clearLivePlots_clicked()
 
     qDebug() << "Live plots cleared.";
 }
+

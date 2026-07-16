@@ -179,8 +179,7 @@ public:
         QVector<double> mag;
     };
 
-
-
+    void clearPeakValues();
 
 private slots:
         void onPortSelected(const QString &portName);
