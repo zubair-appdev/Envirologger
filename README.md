@@ -103,3 +103,7 @@
 #Ver 4.4 ------------------------------------------------------------------------------------------
 - Automatic port detection logic improved.
 - Peak lineEdits clear implemented.
+
+#Ver 4.5 ------------------------------------------------------------------------------------------
+- Battery % logic improved
+- Added Storage option in Get Parameters.

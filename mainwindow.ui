@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1162</width>
-    <height>779</height>
+    <height>788</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -89,6 +89,20 @@
           </size>
          </property>
         </spacer>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_battery">
+         <property name="font">
+          <font>
+           <pointsize>10</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Battery %</string>
+         </property>
+        </widget>
        </item>
        <item>
         <widget class="QComboBox" name="comboBox_ports">
@@ -371,43 +385,50 @@
                 </item>
                </layout>
               </item>
-              <item row="5" column="0">
-               <widget class="QPushButton" name="pushButton_setCurrentParameters">
-                <property name="minimumSize">
-                 <size>
-                  <width>0</width>
-                  <height>35</height>
-                 </size>
-                </property>
-                <property name="font">
-                 <font>
-                  <pointsize>11</pointsize>
-                 </font>
-                </property>
-                <property name="text">
-                 <string>Set Current Parameters</string>
-                </property>
-               </widget>
-              </item>
-              <item row="6" column="0">
-               <widget class="QPushButton" name="pushButton_currentParameters">
-                <property name="minimumSize">
-                 <size>
-                  <width>0</width>
-                  <height>35</height>
-                 </size>
-                </property>
-                <property name="font">
-                 <font>
-                  <pointsize>11</pointsize>
-                 </font>
-                </property>
-                <property name="text">
-                 <string>Get Current Parameters</string>
-                </property>
-               </widget>
-              </item>
               <item row="4" column="0">
+               <layout class="QHBoxLayout" name="horizontalLayout_30">
+                <item>
+                 <widget class="QLabel" name="label_31">
+                  <property name="font">
+                   <font>
+                    <pointsize>10</pointsize>
+                   </font>
+                  </property>
+                  <property name="text">
+                   <string>Available Storage (%)</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QDoubleSpinBox" name="doubleSpinBox_availableStorage">
+                  <property name="minimumSize">
+                   <size>
+                    <width>0</width>
+                    <height>35</height>
+                   </size>
+                  </property>
+                  <property name="font">
+                   <font>
+                    <pointsize>10</pointsize>
+                   </font>
+                  </property>
+                  <property name="toolTip">
+                   <string>Range 0-255</string>
+                  </property>
+                  <property name="styleSheet">
+                   <string notr="true"/>
+                  </property>
+                  <property name="readOnly">
+                   <bool>true</bool>
+                  </property>
+                  <property name="buttonSymbols">
+                   <enum>QAbstractSpinBox::NoButtons</enum>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </item>
+              <item row="5" column="0">
                <widget class="QGroupBox" name="groupBox_radio">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -447,6 +468,42 @@
                   </widget>
                  </item>
                 </layout>
+               </widget>
+              </item>
+              <item row="6" column="0">
+               <widget class="QPushButton" name="pushButton_setCurrentParameters">
+                <property name="minimumSize">
+                 <size>
+                  <width>0</width>
+                  <height>35</height>
+                 </size>
+                </property>
+                <property name="font">
+                 <font>
+                  <pointsize>11</pointsize>
+                 </font>
+                </property>
+                <property name="text">
+                 <string>Set Current Parameters</string>
+                </property>
+               </widget>
+              </item>
+              <item row="7" column="0">
+               <widget class="QPushButton" name="pushButton_currentParameters">
+                <property name="minimumSize">
+                 <size>
+                  <width>0</width>
+                  <height>35</height>
+                 </size>
+                </property>
+                <property name="font">
+                 <font>
+                  <pointsize>11</pointsize>
+                 </font>
+                </property>
+                <property name="text">
+                 <string>Get Current Parameters</string>
+                </property>
                </widget>
               </item>
              </layout>
@@ -1832,8 +1889,11 @@
                    <pointsize>10</pointsize>
                   </font>
                  </property>
-                 <property name="clearButtonEnabled">
+                 <property name="readOnly">
                   <bool>true</bool>
+                 </property>
+                 <property name="clearButtonEnabled">
+                  <bool>false</bool>
                  </property>
                 </widget>
                </item>
@@ -1869,8 +1929,11 @@
                    <pointsize>10</pointsize>
                   </font>
                  </property>
-                 <property name="clearButtonEnabled">
+                 <property name="readOnly">
                   <bool>true</bool>
+                 </property>
+                 <property name="clearButtonEnabled">
+                  <bool>false</bool>
                  </property>
                 </widget>
                </item>
@@ -1906,8 +1969,11 @@
                    <pointsize>10</pointsize>
                   </font>
                  </property>
-                 <property name="clearButtonEnabled">
+                 <property name="readOnly">
                   <bool>true</bool>
+                 </property>
+                 <property name="clearButtonEnabled">
+                  <bool>false</bool>
                  </property>
                 </widget>
                </item>
@@ -1943,8 +2009,11 @@
                    <pointsize>10</pointsize>
                   </font>
                  </property>
-                 <property name="clearButtonEnabled">
+                 <property name="readOnly">
                   <bool>true</bool>
+                 </property>
+                 <property name="clearButtonEnabled">
+                  <bool>false</bool>
                  </property>
                 </widget>
                </item>
@@ -1980,8 +2049,11 @@
                    <pointsize>10</pointsize>
                   </font>
                  </property>
-                 <property name="clearButtonEnabled">
+                 <property name="readOnly">
                   <bool>true</bool>
+                 </property>
+                 <property name="clearButtonEnabled">
+                  <bool>false</bool>
                  </property>
                 </widget>
                </item>
@@ -2017,8 +2089,11 @@
                    <pointsize>10</pointsize>
                   </font>
                  </property>
-                 <property name="clearButtonEnabled">
+                 <property name="readOnly">
                   <bool>true</bool>
+                 </property>
+                 <property name="clearButtonEnabled">
+                  <bool>false</bool>
                  </property>
                 </widget>
                </item>
@@ -2054,8 +2129,11 @@
                    <pointsize>10</pointsize>
                   </font>
                  </property>
-                 <property name="clearButtonEnabled">
+                 <property name="readOnly">
                   <bool>true</bool>
+                 </property>
+                 <property name="clearButtonEnabled">
+                  <bool>false</bool>
                  </property>
                 </widget>
                </item>

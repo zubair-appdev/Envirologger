@@ -82,16 +82,29 @@ public:
 
     void applyScrollArea();
 
-    float bytesToFloatMSB(const QByteArray &bytes)
+    float bytesToFloatMSB(const QByteArray &bytes,bool Endian = false)
     {
         if(bytes.size() < 4)
             return 0.0f;
 
-        quint32 raw =
-                (static_cast<quint8>(bytes[3]) << 24) |
-                (static_cast<quint8>(bytes[2]) << 16) |
-                (static_cast<quint8>(bytes[1]) << 8)  |
-                 static_cast<quint8>(bytes[0]);
+        quint32 raw;
+        if(Endian == false)
+        {
+            raw =
+                    (static_cast<quint8>(bytes[3]) << 24) |
+                    (static_cast<quint8>(bytes[2]) << 16) |
+                    (static_cast<quint8>(bytes[1]) << 8)  |
+                    static_cast<quint8>(bytes[0]);
+        }
+
+        if(Endian == true)
+        {
+            raw =
+                    (static_cast<quint8>(bytes[0]) << 24) |
+                    (static_cast<quint8>(bytes[1]) << 16) |
+                    (static_cast<quint8>(bytes[2]) << 8)  |
+                    static_cast<quint8>(bytes[3]);
+        }
 
         float value;
         memcpy(&value, &raw, sizeof(float));
@@ -259,6 +272,10 @@ private slots:
 
        void on_pushButton_clearLivePlots_clicked();
 
+       void batteryCommand();
+
+       void showBatteryInUi(const QByteArray& battBytes, bool strangeCase = false);
+
 signals:
     void sendMsgId(quint8 id);
 
@@ -355,7 +372,7 @@ private:
 
      quint64 liveTempSampleNumber = 0;
 
-     quint64 LIVE_WINDOW = 6000;
+     quint64 LIVE_WINDOW = 10000;
 
      float adxl100RangeMin = -100.0;
      float adxl500RangeMin = -500.0;
@@ -418,7 +435,10 @@ private:
 
      // FFT Offline loading
      CsvPlotData loadedCsvData;
-     bool csvLoaded = false;         
+     bool csvLoaded = false;
+
+     // Battery
+     QTimer *batteryTimer;
 
 };  
 #endif // MAINWINDOW_H

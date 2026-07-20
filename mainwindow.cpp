@@ -33,6 +33,13 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(this,&MainWindow::sendMsgId,serialObj,&serialPortHandler::recvMsgId);
 
+    //Battery Timer
+    batteryTimer = new QTimer(this);
+
+    connect(batteryTimer,&QTimer::timeout,
+            this,&MainWindow::batteryCommand);
+
+    //Start timer when port is connected
 
     QString detectedPort =
                     serialObj->detectDevicePort();
@@ -46,6 +53,7 @@ MainWindow::MainWindow(QWidget *parent)
                 serialObj->setPORTNAME(detectedPort);
 
 
+                batteryTimer->start(3000);
                 qDebug() << "Auto connected to"
                          << detectedPort;
             }
@@ -166,6 +174,8 @@ MainWindow::MainWindow(QWidget *parent)
         }
     });
 
+    //Hiding buttons
+    ui->pushButton_remainingLogs->hide();
 }
 
 MainWindow::~MainWindow()
@@ -267,7 +277,9 @@ void MainWindow::onPortSelected(const QString &portName)
 
 void MainWindow::handleTimeout()
 {
-    QMessageBox::warning(this, "Timeout", "Hardware Not Responding!");
+    QTimer::singleShot(0, this, [this](){
+        QMessageBox::warning(this, "Timeout", "Hardware Not Responding!");
+    });
 
     if(dlgPlot){
         dlgPlot->close();
@@ -1229,7 +1241,9 @@ void MainWindow::makePacket32UI(QList<QByteArray> &rawPacket32List)
     }
     else
     {
-        QMessageBox::warning(this,"Error","packet32List size is more than 1");
+        QTimer::singleShot(0, this, [this](){
+            QMessageBox::warning(this,"Error","packet32List size is more than 1");
+        });
     }
 }
 
@@ -1545,12 +1559,19 @@ void MainWindow::portStatus(const QString &data)
             dlgPlot = nullptr;
         }
 
-        QMessageBox::critical(this,"Port Error","Please Select Port Using Above Dropdown");
+        QTimer::singleShot(0, this, [this](){
+            QMessageBox::critical(this,"Port Error","Please Select Port Using Above Dropdown");
+        });
+
+        batteryTimer->stop();
     }
 
     if(data.startsWith("Serial port ") && data.endsWith(" opened successfully at baud rate 921600"))
     {
-        QMessageBox::information(this,"Success",data);
+        QTimer::singleShot(0, this, [this,data](){
+            QMessageBox::information(this,"Success",data);
+        });
+        batteryTimer->start(3000);
     }
 
     if(data.startsWith("Failed to open port"))
@@ -1560,10 +1581,13 @@ void MainWindow::portStatus(const QString &data)
             dlgPlot->close();
             dlgPlot = nullptr;
         }
-        QMessageBox::critical(this,"Error",data);
+
+        batteryTimer->stop();
+        QTimer::singleShot(0, this, [this,data](){
+            QMessageBox::critical(this,"Error",data);
+        });
     }
 
-    ui->textEdit_rawBytes->append(data);
 }
 
 void MainWindow::showGuiData(const QByteArray &byteArrayData)
@@ -1866,19 +1890,26 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
                 dlgPlot = nullptr;
             }
 
-            QMessageBox::information(
-                        this,
-                        "Success",
-                        "CSV data saved successfully on Desktop.");
+            QTimer::singleShot(0, this, [this](){
+                QMessageBox::information(
+                            this,
+                            "Success",
+                            "CSV data saved successfully on Desktop.");
+            });
         });
 
         // NEW CODE : CSV DUMP ONLY --------------------------------- END
+
+        batteryTimer->start();
 
     }
     // Get Event Data Command Nack Condition mdgId 0x01
     else if(data.startsWith(QByteArray::fromHex("53 54 45 FF")))
     {
-        QMessageBox::warning(this,"Error","Invalid Event Id");
+        QTimer::singleShot(0, this, [this](){
+            QMessageBox::warning(this,"Error","Invalid Event Id");
+        });
+
         writeToNotes(" ### Invalid Event Id ###");
         if(dlgPlot)
         {
@@ -1900,7 +1931,9 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
         {
             dlg->close();
             dlg = nullptr;
-            QMessageBox::information(this,"Success","Successfully data logged !");
+            QTimer::singleShot(0, this, [this](){
+                QMessageBox::information(this,"Success","Successfully data logged !");
+            });
         }
     }
 
@@ -2006,8 +2039,10 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
     else if(data.startsWith("NO_EVENTS"))
     {
         //mdgId = 0x03
-        QMessageBox::information(this,"No Events",
-                                 "No Events Detected");
+        QTimer::singleShot(0, this, [this](){
+            QMessageBox::information(this,"No Events",
+                                     "No Events Detected");
+        });
     }
 
     else if(data.startsWith(QByteArray::fromHex("53 54 54"))&& data.size()==6)
@@ -2017,14 +2052,17 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
 
         quint16 remainingLogs = (third << 8) | fourth;
 
-        QMessageBox::information(nullptr,
-                                 "Remaining Logs",
-                                 "Remaining log count: " + QString::number(remainingLogs));
+        QTimer::singleShot(0, this, [remainingLogs](){
+            QMessageBox::information(nullptr,
+                                     "Remaining Logs",
+                                     "Remaining log count: " + QString::number(remainingLogs));
+        });
 
     }
+    //msg Id = 0x06
     else if (data.startsWith("PARAM"))
     {
-        QByteArray payload = data.mid(8, 6);
+        QByteArray payload = data.mid(8, 14);
 
         quint8 sNo = static_cast<quint8>(payload[0]);
 
@@ -2038,10 +2076,32 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
 
         quint8 loginMode = static_cast<quint8>(payload[5]);
 
+        quint32 requiredPages =
+            (static_cast<quint8>(payload[9]) << 24) |
+            (static_cast<quint8>(payload[8]) << 16) |
+            (static_cast<quint8>(payload[7]) << 8)  |
+            (static_cast<quint8>(payload[6]));
+
+        quint32 availablePages =
+            (static_cast<quint8>(payload[13]) << 24) |
+            (static_cast<quint8>(payload[12]) << 16) |
+            (static_cast<quint8>(payload[11]) << 8)  |
+            (static_cast<quint8>(payload[10]));
+
+        qDebug()<<requiredPages<<" :requiredPages";
+
+
+        qDebug()<<availablePages<<" :availablePages";
+
+        int totalPages = 261627;
+
+        double availableStorage =
+            (static_cast<double>(availablePages) / totalPages) * 100.0;
 
         ui->spinBox_unitNumber->setValue(sNo);
         ui->spinBox_logTime->setValue(logTime);
         ui->spinBox_samplingfrequency->setValue(samplingFreq);
+        ui->doubleSpinBox_availableStorage->setValue(availableStorage);
 
         if(loginMode == static_cast<quint8>(0xAB))
             ui->radioButton_powerON->setChecked(true);
@@ -2052,6 +2112,17 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
         blinkWidget(ui->spinBox_logTime);
         blinkWidget(ui->spinBox_samplingfrequency);
         blinkWidget(ui->spinBox_unitNumber);
+
+        if (requiredPages >= availablePages)
+        {
+            ui->doubleSpinBox_availableStorage->setStyleSheet(
+                        "QSpinBox { background-color: red; }");
+        }
+        else
+        {
+            blinkWidget(ui->doubleSpinBox_availableStorage);
+        }
+
     }
     else if(data==QByteArray::fromHex("54 53 41 43 4C"))
     {
@@ -2062,11 +2133,15 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
     {
         eraseDlg->close();
         eraseDlg = nullptr;
-        QMessageBox::information(this,"erased","Data Erased successfully");
+        QTimer::singleShot(0, this, [this](){
+            QMessageBox::information(this,"erased","Data Erased successfully");
+        });
     }
     else if(data.startsWith("NO_ERASE"))
     {
-        QMessageBox::information(this,"No Events","No Events To Erase");
+        QTimer::singleShot(0, this, [this](){
+            QMessageBox::information(this,"No Events","No Events To Erase");
+        });
 
     }
 
@@ -2098,16 +2173,69 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
     {
 
         ui->pushButton_stopLivePlot->setText("Stopped");
-        QMessageBox::information(this,"Success","CSV File generated on Desktop");
+        QTimer::singleShot(0, this, [this](){
+            QMessageBox::information(this,"Success","CSV File generated on Desktop");
+        });
     }
+    // msgId = 0x10
     else if(data.startsWith("ACK_1"))
     {
-        QMessageBox::information(this,"Success",
-                                 "Parameters Set Successful");
+        constexpr quint32 TOTAL_PAGES      = 261627;
+        constexpr quint32 SAMPLES_PER_PAGE = 170;
+
+        quint64 totalSamples =
+                static_cast<quint64>(ui->spinBox_samplingfrequency->value()) *
+                static_cast<quint64>(ui->spinBox_logTime->value());
+
+        // One page stores exactly 170 samples
+        quint64 requiredPages =
+                (totalSamples + SAMPLES_PER_PAGE - 1) / SAMPLES_PER_PAGE;
+
+        double requiredPercentage =
+                (static_cast<double>(requiredPages) * 100.0) / TOTAL_PAGES;
+
+        double availableStorage =
+                ui->doubleSpinBox_availableStorage->value();
+
+        QTimer::singleShot(0, this,
+                           [this, requiredPages,
+                            requiredPercentage, availableStorage]()
+        {
+            if(requiredPercentage > availableStorage)
+            {
+                ui->pushButton_startLog->setEnabled(false);
+                QMessageBox::warning(
+                            this,
+                            "Insufficient Storage",
+                            QString("Required Storage : %1 %\n"
+                                    "Available Storage : %2 %\n\n"
+                                    "Please reduce the Log Time or Sampling Frequency.")
+                            .arg(QString::number(requiredPercentage, 'f', 2))
+                            .arg(QString::number(availableStorage, 'f', 2)));
+            }
+            else
+            {
+                ui->pushButton_startLog->setEnabled(true);
+                QMessageBox::information(
+                            this,
+                            "Success",
+                            QString("Parameters Set Successfully\n\n"
+                                    "Required Pages : %1\n"
+                                    "Required Storage : %2 %")
+                            .arg(requiredPages)
+                            .arg(QString::number(requiredPercentage, 'f', 2)));
+            }
+        });
+
+    }
+    else if(data.startsWith("BATT"))
+    {
+        QByteArray battBytes = data.mid(6);
+        qDebug()<<"battBytes: "<<battBytes.toHex();
+
+        showBatteryInUi(battBytes);
     }
 }
-
-
 
 
 void MainWindow::on_pushButton_calibrateScreen_clicked()
@@ -2128,8 +2256,10 @@ void MainWindow::on_pushButton_calibrateScreen_clicked()
         settings.remove("Display/width");
         settings.remove("Display/height");
         settings.remove("Display/diagonal");
-        QMessageBox::information(this, "Calibration Removed",
-                                 "Screen DPI reset to system default.\nRestart app to apply.");
+        QTimer::singleShot(0, this, [this](){
+            QMessageBox::information(this, "Calibration Removed",
+                                     "Screen DPI reset to system default.\nRestart app to apply.");
+        });
         return;
     }
 
@@ -2160,9 +2290,11 @@ void MainWindow::on_pushButton_calibrateScreen_clicked()
     settings.setValue("Display/diagonal", diagonalInches);
     settings.setValue("Display/calibratedDPI", static_cast<int>(ppi));
 
-    QMessageBox::information(this, "Calibration Done",
-                             QString("Resolution: %1 x %2\nDiagonal: %3 in\nDPI set to %4.\nRestart app to apply.")
-                             .arg(width).arg(height).arg(diagonalInches).arg(ppi, 0, 'f', 2));
+    QTimer::singleShot(0, this, [this,width,height,diagonalInches,ppi](){
+        QMessageBox::information(this, "Calibration Done",
+                                 QString("Resolution: %1 x %2\nDiagonal: %3 in\nDPI set to %4.\nRestart app to apply.")
+                                 .arg(width).arg(height).arg(diagonalInches).arg(ppi, 0, 'f', 2));
+    });
 }
 
 
@@ -2174,7 +2306,9 @@ void MainWindow::on_pushButton_getEventData_clicked()
 
     if(!ok || eventId < 0 || eventId > 65535)
     {
-        QMessageBox::warning(this, "Error", "Please enter a valid Event ID (0–65535)");
+        QTimer::singleShot(0, this, [this](){
+            QMessageBox::warning(this, "Error", "Please enter a valid Event ID (0–65535)");
+        });
         return;
     }
 
@@ -2187,6 +2321,8 @@ void MainWindow::on_pushButton_getEventData_clicked()
 
     // Start the timeout timer
     responseTimer->start(2000); // 2 Sec timer
+
+    batteryTimer->stop();
 
     QByteArray command;
 
@@ -2216,7 +2352,9 @@ void MainWindow::on_pushButton_getEventData_clicked()
 void MainWindow::on_pushButton_startLog_clicked()
 {
     if(ui->spinBox_logTime->value() == 0){
-        QMessageBox::warning(this,"Failed","Please set the log time");
+        QTimer::singleShot(0, this, [this](){
+            QMessageBox::warning(this,"Failed","Please set the log time");
+        });
         return;
     }
 
@@ -2276,7 +2414,9 @@ void MainWindow::on_pushButton_enlargePlot_clicked()
 
     if (!plot)
     {
-        QMessageBox::warning(this, "Warning", "Please select a valid plot to enlarge!");
+        QTimer::singleShot(0, this, [this](){
+            QMessageBox::warning(this, "Warning", "Please select a valid plot to enlarge!");
+        });
         return;
     }
 
@@ -2411,13 +2551,17 @@ void MainWindow::on_pushButton_saveLogPlots_clicked()
     // Save file
     if (xlsx.saveAs(selectedFile))
     {
-        QMessageBox::information(this, "Success",
-                                 " Log data saved successfully at:\n" + selectedFile);
+        QTimer::singleShot(0, this, [this,selectedFile](){
+            QMessageBox::information(this, "Success",
+                                     " Log data saved successfully at:\n" + selectedFile);
+        });
     }
     else
     {
-        QMessageBox::critical(this, "Error",
-                              " Failed to save log data.\nPlease check permissions or path.");
+        QTimer::singleShot(0, this, [this](){
+            QMessageBox::critical(this, "Error",
+                                  " Failed to save log data.\nPlease check permissions or path.");
+        });
     }
 }
 
@@ -2550,6 +2694,7 @@ void MainWindow::on_pushButton_erase_clicked()
 {
     QByteArray eraseCmd=QByteArray::fromHex("535441");
     QMessageBox::StandardButton reply;
+
     reply = QMessageBox::question(this, "Confirm", "Do you want to Erase logs?",
                                   QMessageBox::Yes | QMessageBox::No);
     if (reply == QMessageBox::Yes)
@@ -2559,7 +2704,9 @@ void MainWindow::on_pushButton_erase_clicked()
         serialObj->writeData(eraseCmd);
     }
     else{
-        QMessageBox::information(this,"Cancelled","User cancel the erase logs");
+        QTimer::singleShot(0, this, [this](){
+            QMessageBox::information(this,"Cancelled","User cancel the erase logs");
+        });
     }
 }
 
@@ -2678,10 +2825,12 @@ void MainWindow::startAdxlCsvSaving(
 
         if(!ok)
         {
-            QMessageBox::critical(
-                        this,
-                        "Error",
-                        "Failed to save CSV file.");
+            QTimer::singleShot(0, this, [this](){
+                QMessageBox::critical(
+                            this,
+                            "Error",
+                            "Failed to save CSV file.");
+            });
 
             return;
         }
@@ -2979,6 +3128,9 @@ void MainWindow::processLivePacket(const QByteArray &payload)
     QByteArray tempBytes = payload.mid(2040,4);
 
     double temp = bytesToFloatMSB(tempBytes);
+
+    // Changing temperature bytes to battery bytes
+    showBatteryInUi(tempBytes,true);
 
     liveTempSampleNumber++;
 
@@ -3421,6 +3573,8 @@ void MainWindow::on_pushButton_stopLivePlot_clicked()
 
     responseTimer->start(2000);
 
+    batteryTimer->start(3000);
+
     finishLiveCsv();
 
     QByteArray stopPlot = QByteArray::fromHex("535458");
@@ -3434,7 +3588,9 @@ void MainWindow::on_pushButton_startLive_clicked()
 {
     if(ui->lineEdit_windowSize->text().toInt() > 30000)
     {
-        QMessageBox::warning(this,"Error","Please Use Sample Number Below 30000");
+        QTimer::singleShot(0, this, [this](){
+            QMessageBox::warning(this,"Error","Please Use Sample Number Below 30000");
+        });
         return;
     }
 
@@ -3448,6 +3604,8 @@ void MainWindow::on_pushButton_startLive_clicked()
 
     on_pushButton_currentParameters_clicked();
     pauseFor(100);
+
+    batteryTimer->stop();
 
     initializeAllPlots();
 
@@ -3792,10 +3950,12 @@ void MainWindow::on_pushButton_openFiles_clicked()
         loadedCsvData = data;
         csvLoaded = true;
 
-        QMessageBox::information(
-                    this,
-                    "Success",
-                    "CSV loaded successfully.");
+        QTimer::singleShot(0, this, [this](){
+            QMessageBox::information(
+                        this,
+                        "Success",
+                        "CSV loaded successfully.");
+        });
     });
 
     watcher->setFuture(
@@ -3812,12 +3972,16 @@ void MainWindow::on_pushButton_setCurrentParameters_clicked()
     responseTimer->start(2000);
 
     if(ui->spinBox_logTime->value()>65535||ui->spinBox_logTime->value()<1){
-        QMessageBox::information(this,"Out Of Range","Enter the value between 1 and 65535 for log time");
+        QTimer::singleShot(0, this, [this](){
+            QMessageBox::information(this,"Out Of Range","Enter the value between 1 and 65535 for log time");
+        });
         return;
     }
 
     if(ui->spinBox_samplingfrequency->value()>10000 || ui->spinBox_samplingfrequency->value()<1){
-        QMessageBox::information(this,"Out Of Range","Enter the value between 1 and 10000 for ADXL Sampling Frequency");
+        QTimer::singleShot(0, this, [this](){
+            QMessageBox::information(this,"Out Of Range","Enter the value between 1 and 10000 for ADXL Sampling Frequency");
+        });
         return;
     }
 
@@ -3880,9 +4044,11 @@ void MainWindow::on_pushButton_LoadFFT_clicked()
 
     if(!useLoadedCsv && finalX1AdxlNew.isEmpty())
     {
-        QMessageBox::warning(this,
-                             "FFT",
-                             "No ADXL data available.");
+        QTimer::singleShot(0, this, [this](){
+            QMessageBox::warning(this,
+                                 "FFT",
+                                 "No ADXL data available.");
+        });
         return;
     }
 
@@ -3894,9 +4060,11 @@ void MainWindow::on_pushButton_LoadFFT_clicked()
 
     if(sampleRate <= 0)
     {
-        QMessageBox::warning(this,
-                             "FFT",
-                             "Invalid Sampling Frequency.");
+        QTimer::singleShot(0, this, [this](){
+            QMessageBox::warning(this,
+                                 "FFT",
+                                 "Invalid Sampling Frequency.");
+        });
         return;
     }
 
@@ -3948,9 +4116,11 @@ void MainWindow::on_pushButton_LoadFFT_clicked()
        !ui->checkBox_Ay_500->isChecked() &&
        !ui->checkBox_Az_500->isChecked())
     {
-        QMessageBox::information(this,
-                                 "FFT",
-                                 "Please select at least one parameter.");
+        QTimer::singleShot(0, this, [this](){
+            QMessageBox::information(this,
+                                     "FFT",
+                                     "Please select at least one parameter.");
+        });
 
         return;
     }
@@ -4142,10 +4312,12 @@ void MainWindow::on_pushButton_saveFFTplots_clicked()
 
     if(!hasFFTData)
     {
-        QMessageBox::information(this,
-                                 "FFT",
-                                 "No FFT plot data available.\n"
-                                 "Please load or generate FFT before saving.");
+        QTimer::singleShot(0, this, [this](){
+            QMessageBox::information(this,
+                                     "FFT",
+                                     "No FFT plot data available.\n"
+                                     "Please load or generate FFT before saving.");
+        });
         return;
     }
 
@@ -4235,9 +4407,11 @@ void MainWindow::on_pushButton_saveFFTplots_clicked()
 
         writeToNotes("FFT CSV Saved : " + fileName);
 
-        QMessageBox::information(this,
-                                 "Success",
-                                 "FFT CSV saved successfully.");
+        QTimer::singleShot(0, this, [this](){
+            QMessageBox::information(this,
+                                     "Success",
+                                     "FFT CSV saved successfully.");
+        });
     });
 
 
@@ -4349,5 +4523,78 @@ void MainWindow::on_pushButton_clearLivePlots_clicked()
     writeToNotes("Live plots cleared.");
 
     qDebug() << "Live plots cleared.";
+}
+
+void MainWindow::batteryCommand()
+{
+//    // Start the timeout timer
+//    responseTimer->start(2000); // 2 Sec timer
+
+    QByteArray command;
+
+    command.append(0x80); //1
+    command.append(0x81); //2
+    command.append(0x82); //3
+
+
+    qDebug() << "Battery cmd sent : " + hexBytes(command);
+    writeToNotes("Battery cmd sent : " + hexBytes(command));
+
+    serialObj->writeData(command);
+}
+
+void MainWindow::showBatteryInUi(const QByteArray &battBytes, bool strangeCase)
+{
+
+    float battery = 0.00;
+
+    if(strangeCase)
+    {
+        battery = bytesToFloatMSB(battBytes,false);
+    }
+    else
+    {
+        battery = bytesToFloatMSB(battBytes,true);
+    }
+
+    qDebug()<<battery;
+
+    if(battery >= 3.60)
+    {
+        battery = 20 +( (battery - 3.60) / (4.2 - 3.6) )* 80;
+    }
+
+    if(battery <= 3.60)
+    {
+        battery = ( (battery - 3.00) / (3.6 - 3.0) )* 20;
+
+    }
+
+    qDebug()<<"Battery Percentage: "<<battery;
+
+    // Show with 2 decimal places
+      ui->label_battery->setText(QString("Battery %1 %").arg(battery, 0, 'f', 2));
+
+      // Update color
+      if (battery < 10.0f)
+      {
+          ui->label_battery->setStyleSheet(
+              "QLabel {"
+              "background-color: #ff5a54;"
+              "color: white;"
+              "border: 2px solid darkred;"
+              "border-radius: 5px;"
+              "}");
+      }
+      else
+      {
+          ui->label_battery->setStyleSheet(
+              "QLabel {"
+              "background-color: #4c85ff;"
+              "color: white;"
+              "border: 2px solid darkgreen;"
+              "border-radius: 5px;"
+              "}");
+      }
 }
 

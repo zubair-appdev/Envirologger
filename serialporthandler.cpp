@@ -226,6 +226,30 @@ void serialPortHandler::readData()
     }
 
 
+    // Handle asynchronous Battery packet (83 84 xx xx xx xx)
+    // This packet can arrive anytime independent of msgId.
+
+    if (buffer.contains(QByteArray::fromHex("83 84")))
+    {
+        while (true)
+        {
+            int index = buffer.indexOf(QByteArray::fromHex("83 84"));
+
+            if (index == -1)
+                break;
+
+            // Wait until complete 6-byte packet arrives
+            if (buffer.size() < index + 6)
+                break;
+
+            QByteArray batteryRAW = buffer.mid(index, 6);
+
+            emit guiDisplay("BATT" + batteryRAW);
+
+            // Remove only this packet
+            buffer.remove(index, 6);
+        }
+    }
 
     if(msgId == 0x01)
     {
