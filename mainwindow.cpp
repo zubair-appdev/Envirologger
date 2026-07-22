@@ -174,13 +174,14 @@ MainWindow::MainWindow(QWidget *parent)
         }
     });
 
-    //Hiding buttons
+    //Hiding widgets
     ui->pushButton_remainingLogs->hide();
+    ui->doubleSpinBox_availableStorage->hide();
 }
 
 MainWindow::~MainWindow()
 {
-    writeToNotes(+"    ******    "+QCoreApplication::applicationName() +
+    writeToNotes("    ******    "+QCoreApplication::applicationName() +
                  "     Application Closed");
     delete ui;
     delete serialObj;
@@ -2093,7 +2094,7 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
 
         qDebug()<<availablePages<<" :availablePages";
 
-        int totalPages = 261627;
+        int totalPages = 261115;
 
         double availableStorage =
             (static_cast<double>(availablePages) / totalPages) * 100.0;
@@ -2121,6 +2122,40 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
         else
         {
             blinkWidget(ui->doubleSpinBox_availableStorage);
+        }
+
+        //Progress Bar Indication
+        int storagePercent = qRound(availableStorage);
+
+        ui->progressBar_storage->setValue(storagePercent);
+
+        if (storagePercent < 10)
+        {
+            ui->progressBar_storage->setStyleSheet(
+                "QProgressBar {"
+                "    border: 1px solid gray;"
+                "    border-radius: 4px;"
+                "    text-align: center;"
+                "    background-color: #F0F0F0;"
+                "    font-weight: bold;"
+                "}"
+                "QProgressBar::chunk {"
+                "    background-color: red;"
+                "}");
+        }
+        else
+        {
+            ui->progressBar_storage->setStyleSheet(
+                "QProgressBar {"
+                "    border: 1px solid gray;"
+                "    border-radius: 4px;"
+                "    text-align: center;"
+                "    background-color: #F0F0F0;"
+                "    font-weight: bold;"
+                "}"
+                "QProgressBar::chunk {"
+                "    background-color: #a3ff99;"
+                "}");
         }
 
     }
@@ -2180,7 +2215,7 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
     // msgId = 0x10
     else if(data.startsWith("ACK_1"))
     {
-        constexpr quint32 TOTAL_PAGES      = 261627;
+        constexpr quint32 TOTAL_PAGES      = 261115;
         constexpr quint32 SAMPLES_PER_PAGE = 170;
 
         quint64 totalSamples =
@@ -4545,56 +4580,57 @@ void MainWindow::batteryCommand()
 
 void MainWindow::showBatteryInUi(const QByteArray &battBytes, bool strangeCase)
 {
+    float battery = 0.0f;
 
-    float battery = 0.00;
+    if (strangeCase)
+        battery = bytesToFloatMSB(battBytes, false);
+    else
+        battery = bytesToFloatMSB(battBytes, true);
 
-    if(strangeCase)
+    qDebug() << "Battery Voltage:" << battery;
+
+    // Clamp voltage to valid range
+    if (battery <= 3.0f)
     {
-        battery = bytesToFloatMSB(battBytes,false);
+        battery = 0.0f;
+    }
+    else if (battery >= 4.2f)
+    {
+        battery = 100.0f;
+    }
+    else if (battery >= 3.6f)
+    {
+        battery = 20.0f + ((battery - 3.6f) / (4.2f - 3.6f)) * 80.0f;
     }
     else
     {
-        battery = bytesToFloatMSB(battBytes,true);
+        battery = ((battery - 3.0f) / (3.6f - 3.0f)) * 20.0f;
     }
 
-    qDebug()<<battery;
+    qDebug() << "Battery Percentage:" << battery;
 
-    if(battery >= 3.60)
+    ui->label_battery->setText(
+        QString("Battery %1 %").arg(battery, 0, 'f', 0));
+
+    if (battery < 10.0f)
     {
-        battery = 20 +( (battery - 3.60) / (4.2 - 3.6) )* 80;
+        ui->label_battery->setStyleSheet(
+            "QLabel {"
+            "background-color: #ff5a54;"
+            "color: white;"
+            "border: 2px solid darkred;"
+            "border-radius: 5px;"
+            "}");
     }
-
-    if(battery <= 3.60)
+    else
     {
-        battery = ( (battery - 3.00) / (3.6 - 3.0) )* 20;
-
+        ui->label_battery->setStyleSheet(
+            "QLabel {"
+            "background-color: #4c85ff;"
+            "color: white;"
+            "border: 2px solid darkgreen;"
+            "border-radius: 5px;"
+            "}");
     }
-
-    qDebug()<<"Battery Percentage: "<<battery;
-
-    // Show with 2 decimal places
-      ui->label_battery->setText(QString("Battery %1 %").arg(battery, 0, 'f', 2));
-
-      // Update color
-      if (battery < 10.0f)
-      {
-          ui->label_battery->setStyleSheet(
-              "QLabel {"
-              "background-color: #ff5a54;"
-              "color: white;"
-              "border: 2px solid darkred;"
-              "border-radius: 5px;"
-              "}");
-      }
-      else
-      {
-          ui->label_battery->setStyleSheet(
-              "QLabel {"
-              "background-color: #4c85ff;"
-              "color: white;"
-              "border: 2px solid darkgreen;"
-              "border-radius: 5px;"
-              "}");
-      }
 }
 

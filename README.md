@@ -107,3 +107,6 @@
 #Ver 4.5 ------------------------------------------------------------------------------------------
 - Battery % logic improved
 - Added Storage option in Get Parameters.
+
+#Ver 4.6 -----------------------------------------------------------------------------------------
+- Battery decimals removed + progress bar added for storage + pages changed.
