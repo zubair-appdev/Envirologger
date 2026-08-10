@@ -1300,38 +1300,38 @@ void MainWindow::makePacket2048AdxlTempListPressureList(
                     (static_cast<quint8>(adxlBytes[i+1]) << 8) |
                     static_cast<quint8>(adxlBytes[i]);
             double x1f =  (x1 / 65535.0 ) * 5.12;
-            x1f = ( x1f - 1.6666 ) / 0.012;
+            x1f = ( x1f - 1.654 ) / 0.01250;
 
             quint16 y1 =
                     (static_cast<quint8>(adxlBytes[i+3]) << 8) |
                     static_cast<quint8>(adxlBytes[i+2]);
             double y1f =  (y1 / 65535.0 ) * 5.12;
-            y1f = ( y1f - 1.6350 ) / 0.012;
+            y1f = ( y1f - 1.656 ) / 0.01250;
 
             quint16 z1 =
                     (static_cast<quint8>(adxlBytes[i+5]) << 8) |
                     static_cast<quint8>(adxlBytes[i+4]);
             double z1f =  (z1 / 65535.0 ) * 5.12;
-            z1f = ( z1f - 1.6340 ) / 0.012;
+            z1f = ( z1f - 1.656 ) / 0.01250;
 
 
             quint16 x2 =
                     (static_cast<quint8>(adxlBytes[i+7]) << 8) |
                     static_cast<quint8>(adxlBytes[i+6]);
             double x2f =  (x2 / 65535.0 ) * 5.12;
-            x2f = ( x2f - 1.65 ) / 0.0025;
+            x2f = ( x2f - 1.662 ) / 0.0025;
 
             quint16 y2 =
                     (static_cast<quint8>(adxlBytes[i+9]) << 8) |
                     static_cast<quint8>(adxlBytes[i+8]);
             double y2f =  (y2 / 65535.0 ) * 5.12;
-            y2f = ( y2f - 1.65 ) / 0.0025;
+            y2f = ( y2f - 1.668 ) / 0.0025;
 
             quint16 z2 =
                     (static_cast<quint8>(adxlBytes[i+11]) << 8) |
                     static_cast<quint8>(adxlBytes[i+10]);
             double z2f =  (z2 / 65535.0 ) * 5.12;
-            z2f = ( z2f - 1.65 ) / 0.0025;
+            z2f = ( z2f - 1.668 ) / 0.0025;
 
             sampleIndex.append(globalSample++);
 
@@ -3081,22 +3081,22 @@ void MainWindow::processLivePacket(const QByteArray &payload)
                 static_cast<quint8>(adxlBytes[i+10]);
 
         double x1f = (x1 / 65535.0) * 5.12;
-        x1f = ( x1f - 1.6666 ) / 0.012;
+        x1f = ( x1f - 1.654 ) / 0.01250;
 
         double y1f = (y1 / 65535.0) * 5.12;
-        y1f = ( y1f - 1.6350 ) / 0.012;
+        y1f = ( y1f - 1.656 ) / 0.01250;
 
         double z1f = (z1 / 65535.0) * 5.12;
-        z1f = ( z1f - 1.6340 ) / 0.012;
+        z1f = ( z1f - 1.656 ) / 0.01250;
 
         double x2f = (x2 / 65535.0) * 5.12;
-        x2f = ( x2f - 1.65 ) / 0.0025;
+        x2f = ( x2f - 1.662 ) / 0.0025;
 
         double y2f = (y2 / 65535.0) * 5.12;
-        y2f = ( y2f - 1.65 ) / 0.0025;
+        y2f = ( y2f - 1.668 ) / 0.0025;
 
         double z2f = (z2 / 65535.0) * 5.12;
-        z2f = ( z2f - 1.65 ) / 0.0025;
+        z2f = ( z2f - 1.668 ) / 0.0025;
 
         peakAx100 = qMax(peakAx100, x1f);
         peakAy100 = qMax(peakAy100, y1f);

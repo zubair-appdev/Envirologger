@@ -98,7 +98,7 @@
 - Here save FFT Plots implemented and FFT y axis label changed.
 
 #Ver 4.3 -------------------------------------------------------------------------------------------
-- We added clear live plots [+] FFT saving moved to QtConcurrent [+] Pure Oscilloscope effect with StartIndex Hooked.
+- Added clear live plots [+] FFT saving moved to QtConcurrent [+] Pure Oscilloscope effect with StartIndex Hooked.
 
 #Ver 4.4 ------------------------------------------------------------------------------------------
 - Automatic port detection logic improved.
@@ -110,3 +110,6 @@
 
 #Ver 4.6 -----------------------------------------------------------------------------------------
 - Battery decimals removed + progress bar added for storage + pages changed.
+
+#Ver 4.7 ----------------------------------------------------------------------------------------
+- x1f calculation values calibrating 2
