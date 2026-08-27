@@ -1300,38 +1300,38 @@ void MainWindow::makePacket2048AdxlTempListPressureList(
                     (static_cast<quint8>(adxlBytes[i+1]) << 8) |
                     static_cast<quint8>(adxlBytes[i]);
             double x1f =  (x1 / 65535.0 ) * 5.12;
-            x1f = ( x1f - 1.654 ) / 0.01250;
+            x1f = ( x1f - 1.6531875 ) / 0.012563;
 
             quint16 y1 =
                     (static_cast<quint8>(adxlBytes[i+3]) << 8) |
                     static_cast<quint8>(adxlBytes[i+2]);
             double y1f =  (y1 / 65535.0 ) * 5.12;
-            y1f = ( y1f - 1.656 ) / 0.01250;
+            y1f = ( y1f - 1.654625 ) / 0.011812;
 
             quint16 z1 =
                     (static_cast<quint8>(adxlBytes[i+5]) << 8) |
                     static_cast<quint8>(adxlBytes[i+4]);
             double z1f =  (z1 / 65535.0 ) * 5.12;
-            z1f = ( z1f - 1.656 ) / 0.01250;
+            z1f = ( z1f - 1.654375 ) / 0.012346;
 
 
             quint16 x2 =
                     (static_cast<quint8>(adxlBytes[i+7]) << 8) |
                     static_cast<quint8>(adxlBytes[i+6]);
             double x2f =  (x2 / 65535.0 ) * 5.12;
-            x2f = ( x2f - 1.662 ) / 0.0025;
+            x2f = ( x2f - 1.66025 ) / 0.002576;
 
             quint16 y2 =
                     (static_cast<quint8>(adxlBytes[i+9]) << 8) |
                     static_cast<quint8>(adxlBytes[i+8]);
             double y2f =  (y2 / 65535.0 ) * 5.12;
-            y2f = ( y2f - 1.668 ) / 0.0025;
+            y2f = ( y2f - 1.6666875 ) / 0.002556;
 
             quint16 z2 =
                     (static_cast<quint8>(adxlBytes[i+11]) << 8) |
                     static_cast<quint8>(adxlBytes[i+10]);
             double z2f =  (z2 / 65535.0 ) * 5.12;
-            z2f = ( z2f - 1.668 ) / 0.0025;
+            z2f = ( z2f - 1.6663125 ) / 0.002917;
 
             sampleIndex.append(globalSample++);
 
@@ -2180,16 +2180,9 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
 
     }
 
-
     else if(data.startsWith("LIVE"))
     {
-        // For live plot of 2054 each packet
-        QByteArray packet = data.mid(4);      // Remove "LIVE"
-
-        // Packet =
-        // CC DD FF
-        // 2048 Bytes Payload
-        // FF EE FF
+        QByteArray packet = data.mid(4);
 
         if(packet.size() != 2054)
         {
@@ -2199,11 +2192,26 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
             return;
         }
 
+        // Print complete packet only if config.txt contains 1
+        if(isPacketLoggingEnabled())
+        {
+            livePacketCount++;
+
+            QString packetHex = packet.toHex(' ').toUpper();
+
+            writeToNotes(
+                QString("Packet %1:\n%2")
+                    .arg(livePacketCount)
+                    .arg(packetHex)
+            );
+        }
+
         // Remove Header + Footer
-        QByteArray payload = packet.mid(3,2048);
+        QByteArray payload = packet.mid(3, 2048);
 
         processLivePacket(payload);
     }
+
     else if(data.startsWith("STOP_LIVE"))
     {
 
@@ -3081,22 +3089,22 @@ void MainWindow::processLivePacket(const QByteArray &payload)
                 static_cast<quint8>(adxlBytes[i+10]);
 
         double x1f = (x1 / 65535.0) * 5.12;
-        x1f = ( x1f - 1.654 ) / 0.01250;
+        x1f = ( x1f - 1.6531875 ) / 0.012563;
 
         double y1f = (y1 / 65535.0) * 5.12;
-        y1f = ( y1f - 1.656 ) / 0.01250;
+        y1f = ( y1f - 1.654625 ) / 0.011812;
 
         double z1f = (z1 / 65535.0) * 5.12;
-        z1f = ( z1f - 1.656 ) / 0.01250;
+        z1f = ( z1f - 1.654375 ) / 0.012346;
 
         double x2f = (x2 / 65535.0) * 5.12;
-        x2f = ( x2f - 1.662 ) / 0.0025;
+        x2f = ( x2f - 1.66025 ) / 0.002576;
 
         double y2f = (y2 / 65535.0) * 5.12;
-        y2f = ( y2f - 1.668 ) / 0.0025;
+        y2f = ( y2f - 1.6666875 ) / 0.002556;
 
         double z2f = (z2 / 65535.0) * 5.12;
-        z2f = ( z2f - 1.668 ) / 0.0025;
+        z2f = ( z2f - 1.6663125 ) / 0.002917;
 
         peakAx100 = qMax(peakAx100, x1f);
         peakAy100 = qMax(peakAy100, y1f);
@@ -3628,6 +3636,9 @@ void MainWindow::on_pushButton_startLive_clicked()
         });
         return;
     }
+
+    // Clearing debug live packet counter
+    livePacketCount = 0;
 
     //Clearing previous peak values
     clearPeakValues();
@@ -4573,7 +4584,7 @@ void MainWindow::batteryCommand()
 
 
     qDebug() << "Battery cmd sent : " + hexBytes(command);
-    writeToNotes("Battery cmd sent : " + hexBytes(command));
+    //writeToNotes("Battery cmd sent : " + hexBytes(command));
 
     serialObj->writeData(command);
 }

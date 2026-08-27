@@ -276,6 +276,30 @@ private slots:
 
        void showBatteryInUi(const QByteArray& battBytes, bool strangeCase = false);
 
+       //Debug live packets
+       bool isPacketLoggingEnabled()
+       {
+           QString configPath =
+                   QCoreApplication::applicationDirPath() + "/config.txt";
+
+
+           QFile file(configPath);
+
+           if (!file.exists())
+           {
+               return false;
+           }
+
+           if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+           {
+               return false;
+           }
+
+           QString value = QString::fromUtf8(file.readAll()).trimmed();
+
+           return value == "1";
+       }
+
 signals:
     void sendMsgId(quint8 id);
 
@@ -439,6 +463,9 @@ private:
 
      // Battery
      QTimer *batteryTimer;
+
+     // For live plot debug
+     int livePacketCount = 0;
 
 };  
 #endif // MAINWINDOW_H

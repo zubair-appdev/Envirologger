@@ -113,3 +113,6 @@
 
 #Ver 4.7 ----------------------------------------------------------------------------------------
 - x1f calculation values calibrating 2
+
+#Ver 4.8 ----------------------------------------------------------------------------------------
+- x1f values calibrating 3 and provided mechanism to capture live packets.

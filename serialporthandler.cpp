@@ -249,6 +249,7 @@ void serialPortHandler::readData()
             // Remove only this packet
             buffer.remove(index, 6);
         }
+        msgId = 255;
     }
 
     if(msgId == 0x01)
@@ -510,7 +511,14 @@ void serialPortHandler::readData()
     }
     else
     {
-        executeWriteToNotes("unknowm msg id");
+        if(msgId == 255)
+        {
+            // do nothing reserved for battery
+        }
+        else
+        {
+            executeWriteToNotes("unknowm msg id");
+        }
 
     }
 
