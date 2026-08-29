@@ -282,23 +282,25 @@ private slots:
            QString configPath =
                    QCoreApplication::applicationDirPath() + "/config.txt";
 
-
            QFile file(configPath);
 
-           if (!file.exists())
+           if(!file.exists())
            {
                return false;
            }
 
-           if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+           if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
            {
                return false;
            }
 
-           QString value = QString::fromUtf8(file.readAll()).trimmed();
+           QString value =
+                   QString::fromUtf8(file.readLine()).trimmed();
 
            return value == "1";
        }
+
+       void loadAdxlBiasValues();
 
 signals:
     void sendMsgId(quint8 id);
@@ -445,6 +447,15 @@ private:
      bool liveCsvStarted = false;
 
      double liveSamplePeriodUS = 1.0;
+
+     // For Bias values reading from config.txt
+     double x1Bias = 1.6531875;
+     double y1Bias = 1.654625;
+     double z1Bias = 1.654375;
+
+     double x2Bias = 1.66025;
+     double y2Bias = 1.6666875;
+     double z2Bias = 1.6663125;
 
      // For Peak Detection
      double peakAx100 = std::numeric_limits<double>::lowest();

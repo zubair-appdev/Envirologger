@@ -177,6 +177,9 @@ MainWindow::MainWindow(QWidget *parent)
     //Hiding widgets
     ui->pushButton_remainingLogs->hide();
     ui->doubleSpinBox_availableStorage->hide();
+
+    //Load bias values from config.txt
+    loadAdxlBiasValues();
 }
 
 MainWindow::~MainWindow()
@@ -1254,6 +1257,7 @@ void MainWindow::makePacket2048AdxlTempListPressureList(
         QList<QByteArray> &rawPacketPressureList)
 {
     QVector<double> sampleIndex;
+    QVector<double> hardwarePacketNumList;
 
     QVector<double> x1Adxl;
     QVector<double> y1Adxl;
@@ -1269,8 +1273,6 @@ void MainWindow::makePacket2048AdxlTempListPressureList(
     QVector<double> pressureIndex;
     QVector<double> pressureValues;
 
-    int globalSample = 1;
-
     //----------------------------------------------------
     // ADXL DATA
     //----------------------------------------------------
@@ -1279,9 +1281,32 @@ void MainWindow::makePacket2048AdxlTempListPressureList(
     {
         QByteArray packet = rawPacket2048AdxlList[p];
 
-        if(packet.size() < (3 + 2040 + 8 + 3))
+        constexpr int HEADER_SIZE = 3;
+        constexpr int PACKET_NUMBER_SIZE = 4;
+        constexpr int ADXL_SIZE = 2040;
+        constexpr int TEMP_SIZE = 4;
+        constexpr int PRESSURE_SIZE = 4;
+        constexpr int FOOTER_SIZE = 3;
+
+        constexpr int PACKET_SIZE =
+                HEADER_SIZE +
+                PACKET_NUMBER_SIZE +
+                ADXL_SIZE +
+                TEMP_SIZE +
+                PRESSURE_SIZE +
+                FOOTER_SIZE;
+
+        if(packet.size() != PACKET_SIZE)
         {
-            qDebug() << "Skipping short packet:" << packet.size();
+            QString msg =
+                    QString("Invalid/Missed Packet | Size: %1 | Expected: %2\n"
+                            "Packet Data:\n%3")
+                    .arg(packet.size())
+                    .arg(PACKET_SIZE)
+                    .arg(QString(packet.toHex(' ').toUpper()));
+
+            writeToNotes(msg);
+
             continue;
         }
 
@@ -1291,8 +1316,25 @@ void MainWindow::makePacket2048AdxlTempListPressureList(
         // Remove Footer
         payload.chop(3);
 
+        // Hardware Packet Number
+        QByteArray packetNumberBytes = payload.left(4);
+
+        quint32 hardwarePacketNumber =
+                (static_cast<quint8>(packetNumberBytes[0]) << 24) |
+                (static_cast<quint8>(packetNumberBytes[1]) << 16) |
+                (static_cast<quint8>(packetNumberBytes[2]) << 8)  |
+                static_cast<quint8>(packetNumberBytes[3]);
+
+        hardwarePacketNumList.append(hardwarePacketNumber);
+
+        QString msg =
+                QString("Hardware Packet Number: %1")
+                .arg(hardwarePacketNumber);
+
+        writeToNotes(msg);
+
         // ADXL Region = First 2040 Bytes
-        QByteArray adxlBytes = payload.left(2040);
+        QByteArray adxlBytes = payload.mid(4,2040);
 
         for(int i = 0; i + 11 < adxlBytes.size(); i += 12)
         {
@@ -1300,40 +1342,46 @@ void MainWindow::makePacket2048AdxlTempListPressureList(
                     (static_cast<quint8>(adxlBytes[i+1]) << 8) |
                     static_cast<quint8>(adxlBytes[i]);
             double x1f =  (x1 / 65535.0 ) * 5.12;
-            x1f = ( x1f - 1.6531875 ) / 0.012563;
+            x1f = ( x1f - x1Bias ) / 0.012563;
 
             quint16 y1 =
                     (static_cast<quint8>(adxlBytes[i+3]) << 8) |
                     static_cast<quint8>(adxlBytes[i+2]);
             double y1f =  (y1 / 65535.0 ) * 5.12;
-            y1f = ( y1f - 1.654625 ) / 0.011812;
+            y1f = ( y1f - y1Bias ) / 0.011812;
 
             quint16 z1 =
                     (static_cast<quint8>(adxlBytes[i+5]) << 8) |
                     static_cast<quint8>(adxlBytes[i+4]);
             double z1f =  (z1 / 65535.0 ) * 5.12;
-            z1f = ( z1f - 1.654375 ) / 0.012346;
+            z1f = ( z1f - z1Bias ) / 0.012346;
 
 
             quint16 x2 =
                     (static_cast<quint8>(adxlBytes[i+7]) << 8) |
                     static_cast<quint8>(adxlBytes[i+6]);
             double x2f =  (x2 / 65535.0 ) * 5.12;
-            x2f = ( x2f - 1.66025 ) / 0.002576;
+            x2f = ( x2f - x2Bias ) / 0.002576;
 
             quint16 y2 =
                     (static_cast<quint8>(adxlBytes[i+9]) << 8) |
                     static_cast<quint8>(adxlBytes[i+8]);
             double y2f =  (y2 / 65535.0 ) * 5.12;
-            y2f = ( y2f - 1.6666875 ) / 0.002556;
+            y2f = ( y2f - y2Bias ) / 0.002556;
 
             quint16 z2 =
                     (static_cast<quint8>(adxlBytes[i+11]) << 8) |
                     static_cast<quint8>(adxlBytes[i+10]);
             double z2f =  (z2 / 65535.0 ) * 5.12;
-            z2f = ( z2f - 1.6663125 ) / 0.002917;
+            z2f = ( z2f - z2Bias ) / 0.002917;
 
-            sampleIndex.append(globalSample++);
+            int localSampleNumber = (i / 12) + 1;
+
+            double hardwareSampleIndex =
+                    (hardwarePacketNumber * 170)
+                    + localSampleNumber;
+
+            sampleIndex.append(hardwareSampleIndex);
 
             x1Adxl.append(x1f);
             y1Adxl.append(y1f);
@@ -1664,67 +1712,68 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
                             i,
                             footerPos - i + 3);
 
-                // ---------------------------------------------
-                // FF FF FF FF FF FF Special Condition
-                // ---------------------------------------------
-                if(packet2048.contains(
-                            QByteArray::fromHex(
-                                "FF FF FF FF FF FF")))
-                {
-                    QByteArray specialPacket =
-                            packet2048;
+                // FF Filtering is removed now @29Aug2026 for DSVDL project
+//                // ---------------------------------------------
+//                // FF FF FF FF FF FF Special Condition
+//                // ---------------------------------------------
+//                if(packet2048.contains(
+//                            QByteArray::fromHex(
+//                                "FF FF FF FF FF FF")))
+//                {
+//                    QByteArray specialPacket =
+//                            packet2048;
 
-                    int fIndex =
-                            specialPacket.indexOf(
-                                QByteArray::fromHex(
-                                    "FF FF FF FF FF FF"));
+//                    int fIndex =
+//                            specialPacket.indexOf(
+//                                QByteArray::fromHex(
+//                                    "FF FF FF FF FF FF"));
 
-                    qDebug()
-                            << "Consecutive FF's detected at packet [ADXL]:"
-                            << packet2048AdxlList.size();
+//                    qDebug()
+//                            << "Consecutive FF's detected at packet [ADXL]:"
+//                            << packet2048AdxlList.size();
 
-                    writeToNotes(
-                                "Consecutive FF's detected at packet [ADXL]: "
-                                + QString::number(
-                                    packet2048AdxlList.size()));
+//                    writeToNotes(
+//                                "Consecutive FF's detected at packet [ADXL]: "
+//                                + QString::number(
+//                                    packet2048AdxlList.size()));
 
-                    qDebug()
-                            << "fIndex:"
-                            << fIndex;
+//                    qDebug()
+//                            << "fIndex:"
+//                            << fIndex;
 
-                    writeToNotes(
-                                "fIndex (start of FFs) [ADXL]: "
-                                + QString::number(fIndex));
+//                    writeToNotes(
+//                                "fIndex (start of FFs) [ADXL]: "
+//                                + QString::number(fIndex));
 
-                    int bytesRemoved =
-                            (specialPacket.size() - fIndex) - 3;
+//                    int bytesRemoved =
+//                            (specialPacket.size() - fIndex) - 3;
 
-                    qDebug()
-                            << "Removing FF bytes count [ADXL]:"
-                            << bytesRemoved;
+//                    qDebug()
+//                            << "Removing FF bytes count [ADXL]:"
+//                            << bytesRemoved;
 
-                    writeToNotes(
-                                "Removing FF bytes count [ADXL]: "
-                                + QString::number(bytesRemoved));
+//                    writeToNotes(
+//                                "Removing FF bytes count [ADXL]: "
+//                                + QString::number(bytesRemoved));
 
-                    specialPacket.remove(
-                                fIndex,
-                                bytesRemoved);
+//                    specialPacket.remove(
+//                                fIndex,
+//                                bytesRemoved);
 
-                    packet2048AdxlList.append(
-                                specialPacket);
+//                    packet2048AdxlList.append(
+//                                specialPacket);
 
-                    writeToNotes(
-                                "specialPacket [ADXL]: "
-                                + specialPacket
-                                .toHex(' ')
-                                .toUpper());
-                }
-                else
-                {
+//                    writeToNotes(
+//                                "specialPacket [ADXL]: "
+//                                + specialPacket
+//                                .toHex(' ')
+//                                .toUpper());
+//                }
+//                else
+//                {
                     packet2048AdxlList.append(
                                 packet2048);
-                }
+//                }
 
                 // ---------------------------------------------
                 // Extract Temperature & Pressure
@@ -2184,7 +2233,7 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
     {
         QByteArray packet = data.mid(4);
 
-        if(packet.size() != 2054)
+        if(packet.size() != 2058)
         {
             qDebug() << "Invalid LIVE Packet Size:"
                      << packet.size();
@@ -2206,8 +2255,9 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
             );
         }
 
-        // Remove Header + Footer
-        QByteArray payload = packet.mid(3, 2048);
+        // Remove Header
+        // Extract 2052-byte Payload
+        QByteArray payload = packet.mid(3, 2052);
 
         processLivePacket(payload);
     }
@@ -3053,14 +3103,27 @@ bool MainWindow::saveAdxlToCsv(
 
 void MainWindow::processLivePacket(const QByteArray &payload)
 {
-    if(payload.size() != 2048)
-        return;
+    if(payload.size() != 2052)
+           return;
+
+       //-------------------------------------------------------
+       // HARDWARE PACKET NUMBER
+       //-------------------------------------------------------
+
+       QByteArray packetNumberBytes =
+               payload.left(4);
+
+       quint32 hardwarePacketNumber =
+               (static_cast<quint8>(packetNumberBytes[0]) << 24) |
+               (static_cast<quint8>(packetNumberBytes[1]) << 16) |
+               (static_cast<quint8>(packetNumberBytes[2]) << 8)  |
+               static_cast<quint8>(packetNumberBytes[3]);
 
     //-------------------------------------------------------
     // ADXL DATA
     //-------------------------------------------------------
 
-    QByteArray adxlBytes = payload.left(2040);
+    QByteArray adxlBytes = payload.mid(4, 2040);
 
     for(int i = 0; i + 11 < adxlBytes.size(); i += 12)
     {
@@ -3089,22 +3152,22 @@ void MainWindow::processLivePacket(const QByteArray &payload)
                 static_cast<quint8>(adxlBytes[i+10]);
 
         double x1f = (x1 / 65535.0) * 5.12;
-        x1f = ( x1f - 1.6531875 ) / 0.012563;
+        x1f = ( x1f - x1Bias ) / 0.012563;
 
         double y1f = (y1 / 65535.0) * 5.12;
-        y1f = ( y1f - 1.654625 ) / 0.011812;
+        y1f = ( y1f - y1Bias ) / 0.011812;
 
         double z1f = (z1 / 65535.0) * 5.12;
-        z1f = ( z1f - 1.654375 ) / 0.012346;
+        z1f = ( z1f - z1Bias ) / 0.012346;
 
         double x2f = (x2 / 65535.0) * 5.12;
-        x2f = ( x2f - 1.66025 ) / 0.002576;
+        x2f = ( x2f - x2Bias ) / 0.002576;
 
         double y2f = (y2 / 65535.0) * 5.12;
-        y2f = ( y2f - 1.6666875 ) / 0.002556;
+        y2f = ( y2f - y2Bias ) / 0.002556;
 
         double z2f = (z2 / 65535.0) * 5.12;
-        z2f = ( z2f - 1.6663125 ) / 0.002917;
+        z2f = ( z2f - z2Bias ) / 0.002917;
 
         peakAx100 = qMax(peakAx100, x1f);
         peakAy100 = qMax(peakAy100, y1f);
@@ -3116,8 +3179,15 @@ void MainWindow::processLivePacket(const QByteArray &payload)
 
         liveSampleNumber++;
 
+        int localSampleNumber =
+                (i / 12) + 1;
+
+        double globalSampleNumber =
+                (hardwarePacketNumber * 170)
+                + localSampleNumber;
+
         double timeUS =
-                liveSampleNumber *
+                globalSampleNumber *
                 liveSamplePeriodUS;
 
         //-------------------------------------------------------
@@ -4048,7 +4118,9 @@ void MainWindow::on_pushButton_setCurrentParameters_clicked()
     command.append(static_cast<quint8>((samplingFreq >> 8) & 0xFF)); //7
     command.append(static_cast<quint8>(samplingFreq & 0xFF)); //8
 
-    QDateTime dt = ui->dateTimeEdit->dateTime();
+    QDateTime dt = QDateTime::currentDateTime();
+
+    ui->dateTimeEdit->setDateTime(dt);
 
     quint8 year  = dt.date().year();
     quint8 month = dt.date().month();
@@ -4058,11 +4130,11 @@ void MainWindow::on_pushButton_setCurrentParameters_clicked()
     quint8 minute = dt.time().minute();
     quint8 second = dt.time().second();
 
-    command.append(static_cast<quint8>(hour)); //9
-    command.append(static_cast<quint8>(minute)); //10
-    command.append(static_cast<quint8>(second)); //11
-    command.append(static_cast<quint8>(day)); //12
-    command.append(static_cast<quint8>(month)); //13
+    command.append(static_cast<quint8>(hour));
+    command.append(static_cast<quint8>(minute));
+    command.append(static_cast<quint8>(second));
+    command.append(static_cast<quint8>(day));
+    command.append(static_cast<quint8>(month));
     command.append(static_cast<quint8>(year - 2000)); // if protocol needs 2-digit year 14
 
     quint8 mode = ui->radioButton_powerON->isChecked() ? 0xAB : 0xAF;
@@ -4643,5 +4715,101 @@ void MainWindow::showBatteryInUi(const QByteArray &battBytes, bool strangeCase)
             "border-radius: 5px;"
             "}");
     }
+}
+
+void MainWindow::loadAdxlBiasValues()
+{
+    QString configPath =
+            QCoreApplication::applicationDirPath()
+            + "/config.txt";
+
+    QFile file(configPath);
+
+    if(!file.exists())
+    {
+        qDebug() << "config.txt not found. Using default ADXL bias values.";
+        writeToNotes(
+                    "config.txt not found. Using default ADXL bias values.");
+        return;
+    }
+
+    if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+        qDebug() << "Failed to open config.txt. Using default ADXL bias values.";
+        writeToNotes(
+                    "Failed to open config.txt. Using default ADXL bias values.");
+        return;
+    }
+
+    // Row 1 = packet logging
+    file.readLine();
+
+    QStringList rows;
+
+    while(!file.atEnd())
+    {
+        rows.append(
+                    QString::fromUtf8(
+                        file.readLine()).trimmed());
+    }
+
+    if(rows.size() < 6)
+    {
+        qDebug() << "Invalid ADXL bias configuration. Using defaults.";
+        writeToNotes(
+                    "Invalid ADXL bias configuration. Using defaults.");
+        return;
+    }
+
+    bool okX1;
+    bool okY1;
+    bool okZ1;
+    bool okX2;
+    bool okY2;
+    bool okZ2;
+
+    double newX1Bias = rows[0].toDouble(&okX1);
+    double newY1Bias = rows[1].toDouble(&okY1);
+    double newZ1Bias = rows[2].toDouble(&okZ1);
+
+    double newX2Bias = rows[3].toDouble(&okX2);
+    double newY2Bias = rows[4].toDouble(&okY2);
+    double newZ2Bias = rows[5].toDouble(&okZ2);
+
+    if(!okX1 || !okY1 || !okZ1 ||
+       !okX2 || !okY2 || !okZ2)
+    {
+        qDebug() << "Invalid ADXL bias value. Using defaults.";
+        writeToNotes(
+                    "Invalid ADXL bias value. Using defaults.");
+        return;
+    }
+
+    x1Bias = newX1Bias;
+    y1Bias = newY1Bias;
+    z1Bias = newZ1Bias;
+
+    x2Bias = newX2Bias;
+    y2Bias = newY2Bias;
+    z2Bias = newZ2Bias;
+
+    qDebug() << "ADXL Bias Values Loaded:";
+    qDebug() << "X1:" << x1Bias;
+    qDebug() << "Y1:" << y1Bias;
+    qDebug() << "Z1:" << z1Bias;
+    qDebug() << "X2:" << x2Bias;
+    qDebug() << "Y2:" << y2Bias;
+    qDebug() << "Z2:" << z2Bias;
+
+    writeToNotes(
+        QString("ADXL Bias Values Loaded: "
+                "X1=%1, Y1=%2, Z1=%3, "
+                "X2=%4, Y2=%5, Z2=%6")
+        .arg(x1Bias, 0, 'f', 7)
+        .arg(y1Bias, 0, 'f', 7)
+        .arg(z1Bias, 0, 'f', 7)
+        .arg(x2Bias, 0, 'f', 7)
+        .arg(y2Bias, 0, 'f', 7)
+        .arg(z2Bias, 0, 'f', 7));
 }
 

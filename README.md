@@ -116,3 +116,6 @@
 
 #Ver 4.8 ----------------------------------------------------------------------------------------
 - x1f values calibrating 3 and provided mechanism to capture live packets.
+
+#Ver 4.9 ---------------------------------------------------------------------------------------
+- config bias values added and packet 2048 entire structure changed added hardware packets.

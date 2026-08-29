@@ -476,10 +476,11 @@ void serialPortHandler::readData()
     else if(msgId == 0x14)
     {
         // Start Live Plot
-        constexpr int HeaderSize  = 3;
-        constexpr int PayloadSize = 2048;
-        constexpr int FooterSize  = 3;
-        constexpr int PacketSize  = HeaderSize + PayloadSize + FooterSize;
+           constexpr int HeaderSize  = 3;
+           constexpr int PayloadSize = 2052;
+           constexpr int FooterSize  = 3;
+           constexpr int PacketSize  =
+                   HeaderSize + PayloadSize + FooterSize;
 
         powerId = 0x14;
 
@@ -489,9 +490,9 @@ void serialPortHandler::readData()
             if(static_cast<quint8>(buffer[0]) == 0xCC &&
                static_cast<quint8>(buffer[1]) == 0xDD &&
                static_cast<quint8>(buffer[2]) == 0xFF &&
-               static_cast<quint8>(buffer[2051]) == 0xFF &&
-               static_cast<quint8>(buffer[2052]) == 0xEE &&
-               static_cast<quint8>(buffer[2053]) == 0xFF)
+               static_cast<quint8>(buffer[2055]) == 0xFF &&
+               static_cast<quint8>(buffer[2056]) == 0xEE &&
+               static_cast<quint8>(buffer[2057]) == 0xFF)
             {
                 ResponseData = buffer.left(PacketSize);
 
