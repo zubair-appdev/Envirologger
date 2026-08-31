@@ -194,6 +194,9 @@ public:
 
     void clearPeakValues();
 
+    void debugMalformedLivePacket(
+            const QByteArray &packet);
+
 private slots:
         void onPortSelected(const QString &portName);
 

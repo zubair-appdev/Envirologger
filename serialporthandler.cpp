@@ -226,28 +226,29 @@ void serialPortHandler::readData()
     }
 
 
-    // Handle asynchronous Battery packet (83 84 xx xx xx xx)
+    // Handle asynchronous Battery packet (A7 3C 91 E6 xx xx xx xx)
     // This packet can arrive anytime independent of msgId.
 
-    if (buffer.contains(QByteArray::fromHex("83 84")))
+    if (buffer.contains(QByteArray::fromHex("A7 3C 91 E6")) &&
+            batteryFlag == false)
     {
         while (true)
         {
-            int index = buffer.indexOf(QByteArray::fromHex("83 84"));
+            int index = buffer.indexOf(QByteArray::fromHex("A7 3C 91 E6"));
 
             if (index == -1)
                 break;
 
-            // Wait until complete 6-byte packet arrives
-            if (buffer.size() < index + 6)
+            // Wait until complete 8-byte packet arrives
+            if (buffer.size() < index + 8)
                 break;
 
-            QByteArray batteryRAW = buffer.mid(index, 6);
+            QByteArray batteryRAW = buffer.mid(index, 8);
 
             emit guiDisplay("BATT" + batteryRAW);
 
             // Remove only this packet
-            buffer.remove(index, 6);
+            buffer.remove(index, 8);
         }
         msgId = 255;
     }
@@ -409,69 +410,60 @@ void serialPortHandler::readData()
     }
     else if(msgId == 0x11)
     {
-        qDebug() << "msgId:" << hex << msgId;
+        qDebug() << "msgId:" << Qt::hex << msgId;
 
-        constexpr int LIVE_PACKET_SIZE = 2054;
+        const QByteArray STOP_ACK =
+                QByteArray::fromHex("AA BB CC DD EE FF");
 
-        while(buffer.size() >= 6)
+        //-------------------------------------------------------
+        // STOP ACK can arrive anywhere inside the buffer
+        //-------------------------------------------------------
+
+        int index = buffer.indexOf(STOP_ACK);
+
+        if(index != -1)
         {
-            //-------------------------------------------------------
-            // STOP ACK : AA BB CC DD EE FF
-            //-------------------------------------------------------
+            //---------------------------------------------------
+            // We found:
+            // AA BB CC DD EE FF
+            //---------------------------------------------------
 
-            if(buffer.size() >= 6 &&
-               static_cast<quint8>(buffer[0]) == 0xAA &&
-               static_cast<quint8>(buffer[1]) == 0xBB &&
-               static_cast<quint8>(buffer[2]) == 0xCC &&
-               static_cast<quint8>(buffer[3]) == 0xDD &&
-               static_cast<quint8>(buffer[4]) == 0xEE &&
-               static_cast<quint8>(buffer[5]) == 0xFF)
-            {
-                ResponseData = buffer.left(6);
+            ResponseData = buffer.mid(index, STOP_ACK.size());
 
-                executeWriteToNotes(
-                            "Live Plot STOP ACK received: "
-                            + ResponseData.toHex(' ').toUpper());
+            executeWriteToNotes(
+                        "Live Plot STOP ACK received: "
+                        + ResponseData.toHex(' ').toUpper());
 
-                emit guiDisplay("STOP_LIVE" + ResponseData);
+            qDebug() << "LIVE STOP ACK FOUND AT BUFFER INDEX:"
+                     << index;
 
-                buffer.remove(0,6);
+            qDebug() << "STOP ACK:"
+                     << ResponseData.toHex(' ').toUpper();
 
-                break;
-            }
+            emit guiDisplay("STOP_LIVE" + ResponseData);
 
-            //-------------------------------------------------------
-            // Leftover LIVE Packet
-            //-------------------------------------------------------
+            //---------------------------------------------------
+            // Remove everything up to and including STOP ACK
+            //---------------------------------------------------
 
-            else if(buffer.size() >= LIVE_PACKET_SIZE &&
-                    static_cast<quint8>(buffer[0]) == 0xCC &&
-                    static_cast<quint8>(buffer[1]) == 0xDD &&
-                    static_cast<quint8>(buffer[2]) == 0xFF &&
-                    static_cast<quint8>(buffer[2051]) == 0xFF &&
-                    static_cast<quint8>(buffer[2052]) == 0xEE &&
-                    static_cast<quint8>(buffer[2053]) == 0xFF)
-            {
-                ResponseData = buffer.left(LIVE_PACKET_SIZE);
+            buffer.remove(0, index + STOP_ACK.size());
 
-                emit guiDisplay("LIVE" + ResponseData);
+            //---------------------------------------------------
+            // Important:
+            // Stop processing this read cycle.
+            //---------------------------------------------------
 
-                buffer.remove(0, LIVE_PACKET_SIZE);
-            }
-
-            //-------------------------------------------------------
-            // Garbage
-            //-------------------------------------------------------
-
-            else
-            {
-                executeWriteToNotes(
-                            "Dropped invalid LIVE byte: "
-                            + buffer.left(1).toHex());
-
-                buffer.remove(0,1);
-            }
+            return;
         }
+
+        //-------------------------------------------------------
+        // ACK not complete/found yet.
+        //
+        // DO NOT DROP LIVE DATA BYTE-BY-BYTE here.
+        //-------------------------------------------------------
+
+        qDebug() << "STOP ACK not found yet."
+                 << "Current buffer size:" << buffer.size();
     }
     else if(msgId == 0x14)
     {
@@ -591,6 +583,20 @@ void serialPortHandler::readData()
 
 void serialPortHandler::recvMsgId(quint8 id)
 {
+    //Special Condition For Battery
+    if(id == 254)
+    {
+        qDebug()<<"SPECIAL CONDITION 254 ID HITS";
+        batteryFlag = true;
+    }
+
+    if(id == 253)
+    {
+        qDebug()<<"SPECIAL CONDITION 253 ID HITS";
+        batteryFlag = false;
+    }
+
+
     qDebug() << "Received id:" <<hex<< id;
     this->id = id;
     buffer.clear();

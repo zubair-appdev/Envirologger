@@ -79,6 +79,8 @@ private:
 
     //mutex variable
     QMutex bufferMutex; // Mutex for thread-safe access to the buffer
+
+    bool batteryFlag = false;
 };
 
 #endif // SERIALPORTHANDLER_H

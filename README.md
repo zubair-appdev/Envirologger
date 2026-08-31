@@ -119,3 +119,6 @@
 
 #Ver 4.9 ---------------------------------------------------------------------------------------
 - config bias values added and packet 2048 entire structure changed added hardware packets.
+
+#Ver 5.0 --------------------------------------------------------------------------------------
+- Packet missing issue resolved by battery ambiguity issue and pressure in live plot showing correct value.

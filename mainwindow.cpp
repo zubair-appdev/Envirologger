@@ -656,7 +656,7 @@ MainWindow::loadAdxlCsv(
             << result.tempLoaded.size();
 
     qDebug()
-            << "Pressure:"
+            << "Pressure(mbar):"
             << result.pressureLoaded.size();
 
     return result;
@@ -1307,6 +1307,8 @@ void MainWindow::makePacket2048AdxlTempListPressureList(
 
             writeToNotes(msg);
 
+            debugMalformedLivePacket(packet);
+
             continue;
         }
 
@@ -1950,6 +1952,8 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
 
         // NEW CODE : CSV DUMP ONLY --------------------------------- END
 
+        //REGAINING BATTERY CONDITION AT READYREAD
+        emit sendMsgId(253);
         batteryTimer->start();
 
     }
@@ -2323,7 +2327,7 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
     }
     else if(data.startsWith("BATT"))
     {
-        QByteArray battBytes = data.mid(6);
+        QByteArray battBytes = data.mid(8);
         qDebug()<<"battBytes: "<<battBytes.toHex();
 
         showBatteryInUi(battBytes);
@@ -2404,6 +2408,9 @@ void MainWindow::on_pushButton_getEventData_clicked()
         });
         return;
     }
+
+    //OMITTING BATTERY CONDITION AT READYREAD
+    emit sendMsgId(254);
 
     initializeAllPlots();
 
@@ -3238,7 +3245,7 @@ void MainWindow::processLivePacket(const QByteArray &payload)
     // Temperature
     //-------------------------------------------------------
 
-    QByteArray tempBytes = payload.mid(2040,4);
+    QByteArray tempBytes = payload.mid(2044,4);
 
     double temp = bytesToFloatMSB(tempBytes);
 
@@ -3255,7 +3262,7 @@ void MainWindow::processLivePacket(const QByteArray &payload)
     // Pressure
     //-------------------------------------------------------
 
-    QByteArray pressureBytes = payload.mid(2044,4);
+    QByteArray pressureBytes = payload.mid(2048,4);
 
     double pressure =
             bytesToFloatMSB(pressureBytes);
@@ -3544,6 +3551,267 @@ void MainWindow::clearPeakValues()
     ui->lineEdit_pressure_peak->clear();
 }
 
+void MainWindow::debugMalformedLivePacket(
+        const QByteArray &packet)
+{
+    const int EXPECTED_PACKET_SIZE = 2058;
+
+    QString log;
+
+    log += "====================================================\n";
+    log += "MALFORMED LIVE PACKET ANALYSIS\n";
+    log += "====================================================\n";
+
+    log += "Actual Size   : "
+           + QString::number(packet.size())
+           + "\n";
+
+    log += "Expected Size : "
+           + QString::number(EXPECTED_PACKET_SIZE)
+           + "\n";
+
+    log += "Missing Bytes : "
+           + QString::number(EXPECTED_PACKET_SIZE - packet.size())
+           + "\n\n";
+
+    //----------------------------------------------------
+    // Header
+    //----------------------------------------------------
+
+    if(packet.size() >= 3)
+    {
+        QByteArray header = packet.mid(0, 3);
+
+        log += "HEADER [0..2] : "
+               + header.toHex(' ').toUpper()
+               + "\n";
+    }
+
+    //----------------------------------------------------
+    // Hardware packet number
+    //----------------------------------------------------
+
+    if(packet.size() >= 7)
+    {
+        QByteArray hardwareBytes = packet.mid(3, 4);
+
+        log += "HARDWARE PACKET [3..6] : "
+               + hardwareBytes.toHex(' ').toUpper()
+               + "\n";
+    }
+
+    //----------------------------------------------------
+    // ADXL data
+    //----------------------------------------------------
+
+    const int ADXL_START = 7;
+    const int ADXL_SIZE  = 2040;
+
+    if(packet.size() > ADXL_START)
+    {
+        int availableAdxl =
+                qMin(ADXL_SIZE,
+                     packet.size() - ADXL_START);
+
+        QByteArray adxlBytes =
+                packet.mid(ADXL_START, availableAdxl);
+
+        log += "\n";
+        log += "ADXL DATA\n";
+        log += "Available ADXL Bytes : "
+               + QString::number(availableAdxl)
+               + "\n";
+
+        //------------------------------------------------
+        // Every 12 bytes = one complete ADXL sample
+        //------------------------------------------------
+
+        int completeSamples =
+                availableAdxl / 12;
+
+        int remainingBytes =
+                availableAdxl % 12;
+
+        log += "Complete Samples : "
+               + QString::number(completeSamples)
+               + "\n";
+
+        log += "Remaining Bytes  : "
+               + QString::number(remainingBytes)
+               + "\n\n";
+
+        for(int sample = 0;
+            sample < completeSamples;
+            ++sample)
+        {
+            int offset = sample * 12;
+
+            QByteArray sampleBytes =
+                    adxlBytes.mid(offset, 12);
+
+            int sampleNumber = sample + 1;
+
+            int globalSampleNumber =
+                    sampleNumber;
+
+            log += "Sample "
+                   + QString::number(sampleNumber)
+                   + " | Global Sample "
+                   + QString::number(globalSampleNumber)
+                   + " | Bytes "
+                   + QString::number(offset + ADXL_START)
+                   + "-"
+                   + QString::number(offset + ADXL_START + 11)
+                   + " : "
+                   + sampleBytes.toHex(' ').toUpper()
+                   + "\n";
+
+            //------------------------------------------------
+            // Sensor separation
+            //------------------------------------------------
+
+            QByteArray x1 =
+                    sampleBytes.mid(0, 2);
+
+            QByteArray y1 =
+                    sampleBytes.mid(2, 2);
+
+            QByteArray z1 =
+                    sampleBytes.mid(4, 2);
+
+            QByteArray x2 =
+                    sampleBytes.mid(6, 2);
+
+            QByteArray y2 =
+                    sampleBytes.mid(8, 2);
+
+            QByteArray z2 =
+                    sampleBytes.mid(10, 2);
+
+            log += "    ADXL1 X1 : "
+                   + x1.toHex(' ').toUpper()
+                   + "  Y1 : "
+                   + y1.toHex(' ').toUpper()
+                   + "  Z1 : "
+                   + z1.toHex(' ').toUpper()
+                   + "\n";
+
+            log += "    ADXL2 X2 : "
+                   + x2.toHex(' ').toUpper()
+                   + "  Y2 : "
+                   + y2.toHex(' ').toUpper()
+                   + "  Z2 : "
+                   + z2.toHex(' ').toUpper()
+                   + "\n";
+        }
+
+        //------------------------------------------------
+        // Partial ADXL sample
+        //------------------------------------------------
+
+        if(remainingBytes > 0)
+        {
+            int partialStart =
+                    completeSamples * 12;
+
+            QByteArray partialBytes =
+                    adxlBytes.mid(
+                        partialStart,
+                        remainingBytes);
+
+            log += "\n";
+            log += "!!! PARTIAL ADXL SAMPLE !!!\n";
+
+            log += "Sample Number : "
+                   + QString::number(
+                       completeSamples + 1)
+                   + "\n";
+
+            log += "Expected       : 12 bytes\n";
+
+            log += "Received       : "
+                   + QString::number(remainingBytes)
+                   + " bytes\n";
+
+            log += "Partial Bytes  : "
+                   + partialBytes.toHex(' ').toUpper()
+                   + "\n";
+        }
+    }
+
+    //----------------------------------------------------
+    // Temperature
+    //----------------------------------------------------
+
+    const int TEMP_START = 2047;
+
+    if(packet.size() >= TEMP_START + 4)
+    {
+        QByteArray tempBytes =
+                packet.mid(TEMP_START, 4);
+
+        log += "\nTEMP : "
+               + tempBytes.toHex(' ').toUpper()
+               + "\n";
+    }
+    else
+    {
+        log += "\nTEMP : MISSING / INCOMPLETE\n";
+    }
+
+    //----------------------------------------------------
+    // Pressure
+    //----------------------------------------------------
+
+    const int PRESSURE_START = 2051;
+
+    if(packet.size() >= PRESSURE_START + 4)
+    {
+        QByteArray pressureBytes =
+                packet.mid(PRESSURE_START, 4);
+
+        log += "PRESSURE : "
+               + pressureBytes.toHex(' ').toUpper()
+               + "\n";
+    }
+    else
+    {
+        log += "PRESSURE : MISSING / INCOMPLETE\n";
+    }
+
+    //----------------------------------------------------
+    // Footer
+    //----------------------------------------------------
+
+    const int FOOTER_START =
+            EXPECTED_PACKET_SIZE - 3;
+
+    if(packet.size() >= FOOTER_START + 3)
+    {
+        QByteArray footer =
+                packet.mid(FOOTER_START, 3);
+
+        log += "FOOTER : "
+               + footer.toHex(' ').toUpper()
+               + "\n";
+    }
+    else
+    {
+        log += "FOOTER : MISSING / INCOMPLETE\n";
+    }
+
+    //----------------------------------------------------
+    // Final
+    //----------------------------------------------------
+
+    log += "\n";
+    log += "====================================================\n";
+
+    qDebug().noquote() << log;
+
+    writeToNotes(log);
+}
+
 void MainWindow::applyHanning(QVector<double> &signal)
 {
     const int N = signal.size();
@@ -3686,6 +3954,8 @@ void MainWindow::on_pushButton_stopLivePlot_clicked()
 
     responseTimer->start(2000);
 
+    //REGAINING BATTERY CONDITION AT READYREAD
+    emit sendMsgId(253);
     batteryTimer->start(3000);
 
     finishLiveCsv();
@@ -3706,6 +3976,9 @@ void MainWindow::on_pushButton_startLive_clicked()
         });
         return;
     }
+
+    //OMITTING BATTERY CONDITION AT READYREAD
+    emit sendMsgId(254);
 
     // Clearing debug live packet counter
     livePacketCount = 0;
