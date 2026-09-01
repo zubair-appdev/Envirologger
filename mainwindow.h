@@ -378,6 +378,9 @@ private:
      // CSV load files
      struct CsvPlotData
      {
+         bool isLiveCsv = false;
+         bool isDownloadedCsv = false;
+
          int accFrequency = 0;
          QVector<double> sampleIndex;
 

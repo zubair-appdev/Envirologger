@@ -122,3 +122,6 @@
 
 #Ver 5.0 --------------------------------------------------------------------------------------
 - Packet missing issue resolved by battery ambiguity issue and pressure in live plot showing correct value.
+
+#Ver 5.1 -------------------------------------------------------------------------------------
+- pressure x-axis changed to ms.

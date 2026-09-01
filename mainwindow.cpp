@@ -177,6 +177,8 @@ MainWindow::MainWindow(QWidget *parent)
     //Hiding widgets
     ui->pushButton_remainingLogs->hide();
     ui->doubleSpinBox_availableStorage->hide();
+    ui->pushButton_clearLogPlots->hide();
+    ui->pushButton_clearPlots->hide();
 
     //Load bias values from config.txt
     loadAdxlBiasValues();
@@ -517,6 +519,20 @@ MainWindow::loadAdxlCsv(
         metadataLine = in.readLine().trimmed();
     }
 
+    //------------------------------------------------
+    // Detect CSV Type
+    //------------------------------------------------
+
+    if(metadataLine.startsWith("Acceleration Frequency (Hz)"))
+    {
+        result.isLiveCsv = true;
+    }
+    else if(metadataLine.startsWith("Event ID"))
+    {
+        result.isDownloadedCsv = true;
+    }
+
+
     // Extracting accFrequency
     QStringList meta = metadataLine.split(",");
 
@@ -767,18 +783,7 @@ void MainWindow::initializeAllPlots()
 
     QString adxlFreqLabel;
 
-    if(accFrequency > 0)
-    {
-        double samplePeriodUS = 1000000.0 / accFrequency;
-
-        adxlFreqLabel =
-                QString("Sample Number (1 Sample = %1 µs)")
-                .arg(samplePeriodUS, 0, 'f', 2);
-    }
-    else
-    {
-        adxlFreqLabel = "Sample Number";
-    }
+    adxlFreqLabel = "Time (us)";
 
     // ============================================================
     // ADXL PLOTS
@@ -856,7 +861,7 @@ void MainWindow::initializeAllPlots()
     // ============================================================
 
     setupPlot(ui->customPlot_new_Pressure,
-              "Samples",
+              "Time (ms)",
               "Pressure (mbar)");
 
     if(ui->customPlot_new_Pressure->graphCount() == 0)
@@ -964,16 +969,35 @@ void MainWindow::initializeAllPlots()
     // LIVE ADXL PLOTS
     // ============================================================
 
+    QString adxlLiveFreqLabel;
+
+
+    if(accFrequency > 0)
+    {
+        double samplePeriodUS = 1000000.0 / accFrequency;
+
+        adxlLiveFreqLabel =
+                QString("Sample Number (1 Sample = %1 µs)")
+                .arg(samplePeriodUS, 0, 'f', 2);
+    }
+    else
+    {
+        adxlLiveFreqLabel = "Sample Number";
+    }
+
+    qDebug()<<adxlLiveFreqLabel<<" :adxlLiveFreqLabel";
+    qDebug()<<accFrequency;
+
     setupPlot(ui->customPlot_adxl_x_live,
-              "Samples",
+              adxlLiveFreqLabel,
               "Ax_100 (g)");
 
     setupPlot(ui->customPlot_adxl_y_live,
-              "Samples",
+              adxlLiveFreqLabel,
               "Ay_100 (g)");
 
     setupPlot(ui->customPlot_adxl_z_live,
-              "Samples",
+              adxlLiveFreqLabel,
               "Az_100 (g)");
 
     if(ui->customPlot_adxl_x_live->graphCount() == 0)
@@ -993,15 +1017,15 @@ void MainWindow::initializeAllPlots()
     // ============================================================
 
     setupPlot(ui->customPlot_adxl_x2_live,
-              "Samples",
+              adxlLiveFreqLabel,
               "Ax_500 (g)");
 
     setupPlot(ui->customPlot_adxl_y2_live,
-              "Samples",
+              adxlLiveFreqLabel,
               "Ay_500 (g)");
 
     setupPlot(ui->customPlot_adxl_z2_live,
-              "Samples",
+              adxlLiveFreqLabel,
               "Az_500 (g)");
 
     if(ui->customPlot_adxl_x2_live->graphCount() == 0)
@@ -1034,8 +1058,23 @@ void MainWindow::initializeAllPlots()
     // LIVE PRESSURE
     // ============================================================
 
+    QString PressureLiveFreqLabel;
+
+    if(accFrequency > 0)
+    {
+        double samplePeriodUS = ( 170.0 * (1000000.0 / accFrequency) ) / 1000;
+
+        PressureLiveFreqLabel =
+                QString("Sample Number (1 Sample = %1 ms)")
+                .arg(samplePeriodUS, 0, 'f', 2);
+    }
+    else
+    {
+        PressureLiveFreqLabel = "Sample Number";
+    }
+
     setupPlot(ui->customPlot_new_Pressure_live,
-              "Samples",
+              PressureLiveFreqLabel,
               "Pressure (mbar)");
 
     if(ui->customPlot_new_Pressure_live->graphCount() == 0)
@@ -1120,18 +1159,7 @@ void MainWindow::makePacket32UI(QList<QByteArray> &rawPacket32List)
 
         QString adxlFreqLabel;
 
-        if(accFrequency > 0)
-        {
-            double samplePeriodUS = 1000000.0 / accFrequency;
-
-            adxlFreqLabel =
-                    QString("Sample Number (1 Sample = %1 µs)")
-                    .arg(samplePeriodUS, 0, 'f', 2);
-        }
-        else
-        {
-            adxlFreqLabel = "Sample Number";
-        }
+        adxlFreqLabel = "Time (us)";
 
         // Updating x axis lables start -----------------------------
         setupPlot(ui->customPlot_adxl_x,
@@ -1380,8 +1408,8 @@ void MainWindow::makePacket2048AdxlTempListPressureList(
             int localSampleNumber = (i / 12) + 1;
 
             double hardwareSampleIndex =
-                    (hardwarePacketNumber * 170)
-                    + localSampleNumber;
+                    ( (hardwarePacketNumber * 170)
+                    + localSampleNumber ) * (1000000.0 / accFrequency);
 
             sampleIndex.append(hardwareSampleIndex);
 
@@ -1422,6 +1450,9 @@ void MainWindow::makePacket2048AdxlTempListPressureList(
     // PRESSURE
     //----------------------------------------------------
 
+    double pressureTimeFactor =
+            ((1000000 / accFrequency) * 170 ) / 1000;
+
     for(int i = 0; i < rawPacketPressureList.size(); i++)
     {
         QByteArray pressureBytes =
@@ -1435,7 +1466,7 @@ void MainWindow::makePacket2048AdxlTempListPressureList(
 
         pressureValue = pressureValue / 100.0;
 
-        pressureIndex.append(i + 1);
+        pressureIndex.append( (i + 1) * pressureTimeFactor);
         pressureValues.append(pressureValue);
     }
 
@@ -1975,6 +2006,7 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
     // Start Log Initial Command msgId 0x02
     else if(data==QByteArray::fromHex("54 53 41 43 4B"))
     {
+        //continue from here ...
         dlg = createPleaseWaitDialog("⏳ Please Wait Data Logging ...",ui->spinBox_logTime->value());
     }
 
@@ -2154,7 +2186,11 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
 
         ui->spinBox_unitNumber->setValue(sNo);
         ui->spinBox_logTime->setValue(logTime);
+
         ui->spinBox_samplingfrequency->setValue(samplingFreq);
+        // For Live Plot X-axis label
+        this->accFrequency = samplingFreq;
+
         ui->doubleSpinBox_availableStorage->setValue(availableStorage);
 
         if(loginMode == static_cast<quint8>(0xAB))
@@ -2221,6 +2257,7 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
     {
         eraseDlg->close();
         eraseDlg = nullptr;
+        ui->tableWidget_getLogEvents->setRowCount(0);
         QTimer::singleShot(0, this, [this](){
             QMessageBox::information(this,"erased","Data Erased successfully");
         });
@@ -3052,7 +3089,7 @@ bool MainWindow::saveAdxlToCsv(
         ++i)
     {
         out
-                << sampleIndex[i] * (1000000.0 / accFrequency) << ","
+                << sampleIndex[i] << ","
                 << x1Adxl[i] << ","
                 << y1Adxl[i] << ","
                 << z1Adxl[i] << ","
@@ -3272,6 +3309,7 @@ void MainWindow::processLivePacket(const QByteArray &payload)
     peakPressure = qMax(peakPressure, pressure);
     ui->lineEdit_pressure_peak->setText(QString::number(peakPressure, 'f', 3));
 
+
     plotPressure[pressureWriteIndex] = pressure;
     pressureWriteIndex++;
 
@@ -3369,7 +3407,6 @@ void MainWindow::startLiveCsv()
                          QIODevice::Text))
     {
         qDebug() << "Unable to create Live CSV";
-
         return;
     }
 
@@ -3381,7 +3418,16 @@ void MainWindow::startLiveCsv()
     liveCsvStream.setRealNumberPrecision(6);
 
     //-------------------------------------------------------
-    // Header
+    // Frequency Metadata
+    //-------------------------------------------------------
+
+    liveCsvStream
+            << "Acceleration Frequency (Hz),"
+            << accFrequency
+            << "\n";
+
+    //-------------------------------------------------------
+    // Data Header
     //-------------------------------------------------------
 
     liveCsvStream
@@ -3400,6 +3446,7 @@ void MainWindow::startLiveCsv()
 
     qDebug() << "Live CSV Started";
     qDebug() << liveCsvPath;
+    qDebug() << "Live CSV Frequency:" << accFrequency;
 }
 
 void MainWindow::appendLiveCsv()
@@ -4130,20 +4177,14 @@ void MainWindow::on_pushButton_openFiles_clicked()
 
         accFrequency = data.accFrequency;
 
+        qDebug() << "CSV Type:"
+                 << (data.isLiveCsv ? "LIVE" :
+                     data.isDownloadedCsv ? "DOWNLOADED" :
+                     "UNKNOWN");
+
         QString adxlFreqLabel;
 
-        if(accFrequency > 0)
-        {
-            double samplePeriodUS = 1000000.0 / accFrequency;
-
-            adxlFreqLabel =
-                    QString("Sample Number (1 Sample = %1 µs)")
-                    .arg(samplePeriodUS, 0, 'f', 2);
-        }
-        else
-        {
-            adxlFreqLabel = "Sample Number";
-        }
+        adxlFreqLabel = "Time (us)";
 
         setupPlot(ui->customPlot_adxl_x,
                   adxlFreqLabel,
@@ -4277,23 +4318,68 @@ void MainWindow::on_pushButton_openFiles_clicked()
                     tempIndex,
                     data.tempLoaded);
 
+
+        qDebug() << accFrequency << ": accFrequency";
+
         //------------------------------------------------
         // Pressure
         //------------------------------------------------
 
         QVector<double> pressureIndex;
+        QVector<double> pressureValues;
 
-        for(int i = 0;
-            i < data.pressureLoaded.size();
-            i++)
+        //------------------------------------------------
+        // LIVE CSV
+        //------------------------------------------------
+
+        if(data.isLiveCsv)
         {
-            pressureIndex.append(i + 1);
+            for(int i = 169;
+                i < data.pressureLoaded.size() &&
+                i < data.sampleIndex.size();
+                i += 170)
+            {
+                // Actual timestamp from CSV
+                // microseconds -> milliseconds
+                pressureIndex.append(
+                            data.sampleIndex[i] / 1000.0);
+
+                // Take only ONE pressure value
+                // from each 170-sample block
+                pressureValues.append(
+                            data.pressureLoaded[i]);
+            }
         }
+
+        //------------------------------------------------
+        // DOWNLOADED CSV
+        //------------------------------------------------
+
+        else if(data.isDownloadedCsv)
+        {
+            double pressureTimeFactor =
+                    ((1000000.0 / accFrequency) * 170.0) / 1000.0;
+
+            for(int i = 0;
+                i < data.pressureLoaded.size();
+                i++)
+            {
+                pressureIndex.append(
+                            (i + 1) * pressureTimeFactor);
+
+                pressureValues.append(
+                            data.pressureLoaded[i]);
+            }
+        }
+
+        //------------------------------------------------
+        // Plot Pressure
+        //------------------------------------------------
 
         plotGraph(
                     ui->customPlot_new_Pressure,
                     pressureIndex,
-                    data.pressureLoaded);
+                    pressureValues);
 
         //------------------------------------------------
         // Close Loading Dialog
