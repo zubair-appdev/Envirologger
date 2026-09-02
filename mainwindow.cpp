@@ -179,6 +179,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->doubleSpinBox_availableStorage->hide();
     ui->pushButton_clearLogPlots->hide();
     ui->pushButton_clearPlots->hide();
+    ui->pushButton_clearFFTplots->hide();
 
     //Load bias values from config.txt
     loadAdxlBiasValues();
@@ -2004,10 +2005,15 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
     }
 
     // Start Log Initial Command msgId 0x02
-    else if(data==QByteArray::fromHex("54 53 41 43 4B"))
+    else if(data == QByteArray::fromHex("54 53 41 43 4B"))
     {
-        //continue from here ...
-        dlg = createPleaseWaitDialog("⏳ Please Wait Data Logging ...",ui->spinBox_logTime->value());
+        // Give the current readyRead/showGuiData cycle breathing room
+        QTimer::singleShot(0, this, [this]()
+        {
+            // Send Current Parameters command
+            timerDialogFlag = true;
+            on_pushButton_currentParameters_clicked();
+        });
     }
 
     // Start Log End Initial Command msgId 0x02
@@ -2245,6 +2251,19 @@ void MainWindow::showGuiData(const QByteArray &byteArrayData)
                 "QProgressBar::chunk {"
                 "    background-color: #a3ff99;"
                 "}");
+        }
+
+        // Now Current Parameters response has actually arrived.
+        // spinBox_logTime contains the real value.
+
+        if(timerDialogFlag)
+        {
+            emit sendMsgId(0x02);
+            dlg = createPleaseWaitDialog(
+                        "⏳ Please Wait Data Logging ...",
+                        ui->spinBox_logTime->value()
+                        );
+            timerDialogFlag = false;
         }
 
     }
@@ -4600,6 +4619,46 @@ void MainWindow::on_pushButton_LoadFFT_clicked()
         });
 
         return;
+    }
+
+    //-------------------------------------------------------
+    // Clear FFT plots which are NOT selected
+    //-------------------------------------------------------
+
+    if(!allSelected && !ui->checkBox_Ax_100->isChecked())
+    {
+        ui->customPlot_adxl_x_FFT->graph(0)->data()->clear();
+        ui->customPlot_adxl_x_FFT->replot();
+    }
+
+    if(!allSelected && !ui->checkBox_Ay_100->isChecked())
+    {
+        ui->customPlot_adxl_y_FFT->graph(0)->data()->clear();
+        ui->customPlot_adxl_y_FFT->replot();
+    }
+
+    if(!allSelected && !ui->checkBox_Az_100->isChecked())
+    {
+        ui->customPlot_adxl_z_FFT->graph(0)->data()->clear();
+        ui->customPlot_adxl_z_FFT->replot();
+    }
+
+    if(!allSelected && !ui->checkBox_Ax_500->isChecked())
+    {
+        ui->customPlot_adxl_x_FFT_2->graph(0)->data()->clear();
+        ui->customPlot_adxl_x_FFT_2->replot();
+    }
+
+    if(!allSelected && !ui->checkBox_Ay_500->isChecked())
+    {
+        ui->customPlot_adxl_y_FFT_2->graph(0)->data()->clear();
+        ui->customPlot_adxl_y_FFT_2->replot();
+    }
+
+    if(!allSelected && !ui->checkBox_Az_500->isChecked())
+    {
+        ui->customPlot_adxl_z_FFT_2->graph(0)->data()->clear();
+        ui->customPlot_adxl_z_FFT_2->replot();
     }
 
     QList<QPair<QVector<double>, QCustomPlot*>> fftJobs;

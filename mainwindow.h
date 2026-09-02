@@ -484,5 +484,7 @@ private:
      // For live plot debug
      int livePacketCount = 0;
 
+     // Timer dialog flag
+     bool timerDialogFlag = false;
 };  
 #endif // MAINWINDOW_H
